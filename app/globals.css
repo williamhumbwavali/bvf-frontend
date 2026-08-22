@@ -1,0 +1,37 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-geist), Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+  --color-background: #0c0d0c;
+  --color-foreground: #f7f8f4;
+  --color-card: #131513;
+  --color-card-foreground: #f7f8f4;
+  --color-primary: #d8ff3e;
+  --color-primary-foreground: #101110;
+  --color-muted: #191b19;
+  --color-muted-foreground: #929791;
+  --color-border: rgba(255,255,255,.1);
+  --color-input: rgba(255,255,255,.12);
+  --color-ring: #d8ff3e;
+  --color-destructive: #ff6b5e;
+  --radius-lg: .75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+}
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html { background: #0c0d0c; }
+body { margin: 0; background: #0c0d0c; color: #f7f8f4; font-family: var(--font-geist), Arial, sans-serif; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+::selection { background: #d8ff3e; color: #101110; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #0c0d0c; }
+::-webkit-scrollbar-thumb { background: #2b302b; border-radius: 999px; }
+:focus-visible { outline: 2px solid #d8ff3e; outline-offset: 3px; }
