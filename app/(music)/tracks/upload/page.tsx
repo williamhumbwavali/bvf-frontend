@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Check,
   ImagePlus,
@@ -13,18 +13,30 @@ import { toast } from 'sonner'
 import MusicSidebar from '@/components/music-sidebar'
 import MusicHeader from '@/components/music-header'
 import { tracksService } from '@/services/tracks.service'
+import { Genre, genresService } from '@/services/genre.service'
 
 export default function UploadMusicPage() {
   const [active, setActive] = useState('Publicar')
+  const [genres, setGenres] = useState<Genre[]>([])
 
   const [title, setTitle] = useState('')
-  const [genre, setGenre] = useState('')
+  const [genreId, setGenreId] = useState('')
 
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
 
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+
+  async function loadGenres() {
+    const Genres = await genresService.list();
+
+    setGenres(Genres.data)
+  }
+
+  useEffect(() => {
+    loadGenres()
+  }, []);
 
   const handleAudioChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -105,7 +117,7 @@ export default function UploadMusicPage() {
       return
     }
 
-    if (!genre) {
+    if (!genreId) {
       toast.error('Selecione um gênero.')
       return
     }
@@ -174,7 +186,7 @@ export default function UploadMusicPage() {
 
       await tracksService.create({
         title: title.trim(),
-        genre,
+        genreId,
         durationSec,
         audioUrl: audioUpload.publicUrl,
         coverUrl,
@@ -183,7 +195,7 @@ export default function UploadMusicPage() {
       toast.success('Música publicada com sucesso.')
 
       setTitle('')
-      setGenre('')
+      setGenreId('')
       setAudioFile(null)
       setCoverFile(null)
       setCoverPreview(null)
@@ -350,29 +362,20 @@ export default function UploadMusicPage() {
 
                     <select
                       id="genre"
-                      value={genre}
+                      value={genreId}
                       onChange={(event) =>
-                        setGenre(event.target.value)
+                        setGenreId(event.target.value)
                       }
                       className="h-11 w-full rounded-lg border border-white/10 bg-[#171917] px-3 text-sm text-white outline-none focus:border-[#d8ff3e]/60"
                     >
                       <option value="">
                         Selecionar gênero
                       </option>
-                      <option value="Emo Rap">Emo Rap</option>
-                      <option value="Hip Hop">Hip Hop</option>
-                      <option value="Rap">Rap</option>
-                      <option value="Trap">Trap</option>
-                      <option value="R&B">R&B</option>
-                      <option value="Pop">Pop</option>
-                      <option value="Rock">Rock</option>
-                      <option value="Lo-fi">Lo-fi</option>
-                      <option value="Eletrônica">
-                        Eletrônica
-                      </option>
-                      <option value="Afrobeats">
-                        Afrobeats
-                      </option>
+                      {genres.map((genre) => {
+                        return (
+                          <option key={genre.id} value={genre.id}>{genre.name}</option>
+                        )
+                      })}
                       <option value="Outro">Outro</option>
                     </select>
                   </div>

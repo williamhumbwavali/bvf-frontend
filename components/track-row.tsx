@@ -68,7 +68,7 @@ export default function TrackRow({
         <p className="truncate text-xs text-white/40">
           {track.artist?.name}
           <span className="px-1">·</span>
-          {track.genre}
+          {track.genre?.name}
         </p>
       </div>
 

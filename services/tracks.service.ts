@@ -1,11 +1,16 @@
 import { api } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { Artist } from '@/types/music';
+import { Genre } from './genre.service';
+
+export interface Album {
+  title: string
+}
 
 export interface Track {
   id: string;
   title: string;
-  genre?: string;
+  genre?: Genre;
   durationSec?: number;
   playCount?: number;
   downloadCount?: number;
@@ -15,7 +20,7 @@ export interface Track {
   artistId: string;
   albumId?: string;
   artist?: Artist;
-  album?: unknown;
+  album?: Album;
   createdAt?: string;
   updatedAt?: string;
 }

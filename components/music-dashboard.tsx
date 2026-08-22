@@ -160,7 +160,7 @@ function FeaturedTrack({
             {track.genre && (
               <>
                 <span className="px-1">·</span>
-                {track.genre}
+                {track.genre.name}
               </>
             )}
 
@@ -669,7 +669,7 @@ export default function MusicDashboard() {
       const text = `
         ${track.title}
         ${track.artist?.name ?? ''}
-        ${track.genre ?? ''}
+        ${track.genre?.name ?? ''}
         ${track.album?.title ?? ''}
       `.toLowerCase()
 

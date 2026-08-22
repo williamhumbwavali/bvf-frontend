@@ -35,4 +35,9 @@ export const API_ENDPOINTS = {
     DOWNLOADS: '/users/me/downloads',
     FOLLOWING: '/users/me/following',
   },
+  Genres: {
+    LIST: '/genres',
+    GET: (id: number) => `/genres/${id}`,
+    SLUG: (slug: string) => `/genres/slugs/${slug}`
+  }
 } as const;
