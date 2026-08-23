@@ -77,7 +77,7 @@ export default function PrivacyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0d0c] text-white">
+    <div className="min-h-screen bg-[#0c0d0c] text-white mb-12">
       <Toaster
         theme="dark"
         position="top-right"

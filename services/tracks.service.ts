@@ -1,4 +1,4 @@
-import { api } from '@/lib/api/client';
+import { api, ApiResponse } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { Artist } from '@/types/music';
 import { Genre } from './genre.service';
@@ -45,6 +45,10 @@ export interface TrackListResponse {
   }
 }
 
+export interface TrackTrendingResponse {
+  data: Track[];
+}
+
 export const tracksService = {
   list(
     page = 1,
@@ -66,7 +70,7 @@ export const tracksService = {
   },
 
   getById(id: string) {
-    return api.get<Track>(
+    return api.get<ApiResponse<Track>>(
       API_ENDPOINTS.TRACKS.BY_ID(id),
     );
   },
@@ -147,4 +151,14 @@ export const tracksService = {
       },
     )
   },
+  trending(limit = 10) {
+    const params = new URLSearchParams({
+      limit: String(limit),
+    });
+
+    return api.get<TrackTrendingResponse>(
+      `${API_ENDPOINTS.TRACKS.TRENDING}?${params.toString()}`,
+    );
+  },
+
 };

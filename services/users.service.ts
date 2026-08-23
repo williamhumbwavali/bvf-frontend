@@ -1,5 +1,6 @@
 import { api } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { Track } from './tracks.service';
 
 export interface PlaybackHistory {
   id: string;
@@ -14,6 +15,11 @@ export interface Like {
   userId: string;
   trackId: string;
   createdAt: string;
+  track: Track;
+}
+
+export interface DownloadHistoryResponse {
+  data: DownloadHistory[];
 }
 
 export interface DownloadHistory {
@@ -30,9 +36,65 @@ export interface ArtistFollower {
   createdAt: string;
 }
 
+export interface LikedResponse {
+  data: Like[];
+}
+
+export interface PlaybackHistoryResponse {
+  data: PlaybackHistory[];
+}
+
+/**
+ * Dados que podem ser atualizados pelo usuário.
+ *
+ * username -> User.username
+ * handle   -> Artist.handle
+ * name     -> User.name + Artist.name
+ * bio      -> User.bio + Artist.bio
+ * genre    -> User.genre + Artist.genre
+ * avatarUrl -> User.avatarUrl + Artist.image
+ */
+export interface UpdateProfileData {
+  name?: string;
+  username?: string;
+  bio?: string;
+  genre?: string;
+  avatarUrl?: string;
+}
+
+/**
+ * Resposta da atualização do perfil.
+ */
+export interface UpdateProfileResponse {
+  data: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      username: string;
+      avatarUrl: string | null;
+      bio: string | null;
+      genre: string | null;
+      role: string;
+    };
+
+    artist?: {
+      id: string;
+      name: string;
+      handle: string;
+      genre: string | null;
+      image: string | null;
+      verified: boolean;
+      followers: number;
+      bio: string | null;
+      userId: string;
+    };
+  };
+}
+
 export const usersService = {
   getHistory() {
-    return api.get<PlaybackHistory[]>(
+    return api.get<PlaybackHistoryResponse>(
       API_ENDPOINTS.USERS.HISTORY,
       {
         auth: true,
@@ -50,7 +112,7 @@ export const usersService = {
   },
 
   getLikedTracks() {
-    return api.get<Like[]>(
+    return api.get<LikedResponse>(
       API_ENDPOINTS.USERS.LIKED_TRACKS,
       {
         auth: true,
@@ -59,7 +121,7 @@ export const usersService = {
   },
 
   getDownloads() {
-    return api.get<DownloadHistory[]>(
+    return api.get<DownloadHistoryResponse>(
       API_ENDPOINTS.USERS.DOWNLOADS,
       {
         auth: true,
@@ -70,6 +132,15 @@ export const usersService = {
   getFollowing() {
     return api.get<ArtistFollower[]>(
       API_ENDPOINTS.USERS.FOLLOWING,
+      {
+        auth: true,
+      },
+    );
+  },
+  updateProfile(data: UpdateProfileData) {
+    return api.patch<UpdateProfileResponse>(
+      API_ENDPOINTS.USERS.UPDATE_PROFILE,
+      data,
       {
         auth: true,
       },

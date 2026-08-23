@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   CheckCircle2,
   Download,
@@ -10,30 +10,52 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
-import { tracks, type Track } from '@/types/music'
+
+import { Track } from '@/services/tracks.service'
 import { usePlayerStore } from '@/stores/player-store'
+import { usersService } from '@/services/users.service'
+
 import MusicSidebar from './music-sidebar'
 import MusicHeader from './music-header'
-import MusicPlayer from './music-player'
 
 export default function DownloadsPage() {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState('Downloads')
-  const [downloads, setDownloads] = useState<Track[]>(
-    tracks.slice(0, 5),
-  )
+  const [downloads, setDownloads] = useState<Track[]>([])
+  const [loading, setLoading] = useState(true)
 
   const { play } = usePlayerStore()
 
-  const filteredDownloads = useMemo(
-    () =>
-      downloads.filter((track) =>
-        `${track.title} ${track.artist} ${track.genre}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-      ),
-    [downloads, query],
-  )
+  useEffect(() => {
+    const loadDownloads = async () => {
+      try {
+        setLoading(true)
+
+        const response = await usersService.getDownloads()
+
+        // Aqui você precisa ter uma fonte real das tracks.
+        // Caso seu endpoint de downloads passe a retornar
+        // os dados completos da música, basta usar diretamente.
+        console.log(response.data)
+
+      } catch (error) {
+        console.error('Erro ao carregar downloads:', error)
+        toast.error('Não foi possível carregar os downloads')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDownloads()
+  }, [])
+
+  const filteredDownloads = useMemo(() => {
+    return downloads.filter((track) =>
+      `${track.title} ${track.artist} ${track.genre}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+    )
+  }, [downloads, query])
 
   const removeDownload = (id: string) => {
     setDownloads((current) =>
@@ -125,7 +147,11 @@ export default function DownloadsPage() {
             <CheckCircle2 className="size-5 text-[#d8ff3e]" />
           </div>
 
-          {filteredDownloads.length === 0 ? (
+          {loading ? (
+            <div className="py-24 text-center text-sm text-white/40">
+              Carregando downloads...
+            </div>
+          ) : filteredDownloads.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-[#131513] py-24 text-center">
               <Download className="mx-auto size-10 text-white/20" />
 
@@ -161,7 +187,7 @@ export default function DownloadsPage() {
                       className="relative size-11 shrink-0 overflow-hidden rounded-md"
                     >
                       <img
-                        src={track.cover}
+                        src={track.coverUrl}
                         alt={`Capa de ${track.title}`}
                         className="size-full object-cover"
                       />
@@ -177,9 +203,9 @@ export default function DownloadsPage() {
                       </p>
 
                       <p className="truncate text-xs text-white/40">
-                        {track.artist}
+                        {track.artist?.name}
                         <span className="px-1">·</span>
-                        {track.genre}
+                        {track.genre?.name}
                       </p>
                     </div>
 
@@ -192,7 +218,7 @@ export default function DownloadsPage() {
                     </div>
 
                     <span className="hidden w-12 text-right font-mono text-xs text-white/30 sm:block">
-                      {track.duration}
+                      {track.durationSec}
                     </span>
 
                     <button

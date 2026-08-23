@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     LIKE: (id: string) => `/tracks/${id}/like`,
     UNLIKE: (id: string) => `/tracks/${id}/like`,
     LIKES_COUNT: (id: string) => `/tracks/${id}/likes`,
+    TRENDING: '/tracks/trending',
   },
 
   PLAYLISTS: {
@@ -34,10 +35,22 @@ export const API_ENDPOINTS = {
     LIKED_TRACKS: '/users/me/liked-tracks',
     DOWNLOADS: '/users/me/downloads',
     FOLLOWING: '/users/me/following',
+    UPDATE_PROFILE: '/users/me/me'
   },
   Genres: {
     LIST: '/genres',
-    GET: (id: number) => `/genres/${id}`,
+    BY_ID: (id: string) => `/genres/${id}`,
     SLUG: (slug: string) => `/genres/slugs/${slug}`
-  }
+  },
+  ARTISTS: {
+    LIST: '/artists',
+
+    ME: '/artists/me',
+
+    BY_ID: (id: string) =>
+      `/artists/${id}`,
+
+    BY_USERNAME: (username: string) =>
+      `/artists/username/${username}`,
+  },
 } as const;

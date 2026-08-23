@@ -1,31 +1,33 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Clock3,
   History,
-  Play,
   Trash2,
   TrendingUp,
 } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
-import { tracks, type Track } from '@/types/music'
+
 import { usePlayerStore } from '@/stores/player-store'
-import MusicPlayer from './music-player'
+
+import { tracksService, type Track } from '@/services/tracks.service'
+import {
+  usersService,
+  type PlaybackHistory,
+} from '@/services/users.service'
+
 import MusicSidebar from './music-sidebar'
 import MusicHeader from './music-header'
 import TrackRow from './track-row'
 
-const historyTracks = [
-  tracks[0],
-  tracks[2],
-  tracks[4],
-  tracks[1],
-  tracks[5],
-  tracks[3],
-].filter(Boolean)
-
-function HistoryHeader() {
+function HistoryHeader({
+  onClear,
+  clearing,
+}: {
+  onClear: () => void
+  clearing: boolean
+}) {
   return (
     <div className="mb-8">
       <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.24em] text-[#d8ff3e]">
@@ -44,18 +46,91 @@ function HistoryHeader() {
         </div>
 
         <button
-          onClick={() => toast.info('Histórico limpo.')}
-          className="flex w-fit items-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-xs text-white/55 transition-colors hover:border-white/20 hover:text-white"
+          onClick={onClear}
+          disabled={clearing}
+          className="flex w-fit items-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-xs text-white/55 transition-colors hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Trash2 className="size-4" />
-          Limpar histórico
+
+          {clearing ? 'Limpando...' : 'Limpar histórico'}
         </button>
       </div>
     </div>
   )
 }
 
-function HistoryStats() {
+function HistoryStats({
+  history,
+  tracks,
+}: {
+  history: PlaybackHistory[]
+  tracks: Track[]
+}) {
+  const mostPlayed = useMemo(() => {
+    if (history.length === 0) {
+      return null
+    }
+
+    const counts = new Map<string, number>()
+
+    for (const item of history) {
+      counts.set(
+        item.trackId,
+        (counts.get(item.trackId) ?? 0) + 1,
+      )
+    }
+
+    let mostPlayedTrackId: string | null = null
+    let highestCount = 0
+
+    for (const [trackId, count] of counts.entries()) {
+      if (count > highestCount) {
+        highestCount = count
+        mostPlayedTrackId = trackId
+      }
+    }
+
+    if (!mostPlayedTrackId) {
+      return null
+    }
+
+    const track = tracks.find(
+      (item) => item.id === mostPlayedTrackId,
+    )
+
+    if (!track) {
+      return null
+    }
+
+    return {
+      track,
+      count: highestCount,
+    }
+  }, [history, tracks])
+
+  const totalListeningSeconds = useMemo(() => {
+    return history.reduce((total, item) => {
+      const track = tracks.find(
+        (track) => track.id === item.trackId,
+      )
+
+      return total + (track?.durationSec ?? 0)
+    }, 0)
+  }, [history, tracks])
+
+  const formatListeningTime = (seconds: number) => {
+    const totalMinutes = Math.floor(seconds / 60)
+
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`
+    }
+
+    return `${minutes}min`
+  }
+
   return (
     <section className="mb-10 grid gap-4 sm:grid-cols-3">
       <div className="rounded-2xl border border-white/10 bg-[#131513] p-5">
@@ -68,11 +143,11 @@ function HistoryStats() {
         </p>
 
         <p className="mt-1 text-2xl font-semibold">
-          128
+          {history.length}
         </p>
 
         <p className="mt-1 text-xs text-white/35">
-          nos últimos 30 dias
+          registros no histórico
         </p>
       </div>
 
@@ -86,11 +161,11 @@ function HistoryStats() {
         </p>
 
         <p className="mt-1 text-2xl font-semibold">
-          18h 42min
+          {formatListeningTime(totalListeningSeconds)}
         </p>
 
         <p className="mt-1 text-xs text-white/35">
-          tempo total de reprodução
+          estimativa baseada nas faixas
         </p>
       </div>
 
@@ -104,22 +179,64 @@ function HistoryStats() {
         </p>
 
         <p className="mt-1 truncate text-2xl font-semibold">
-          {historyTracks[0]?.title ?? '—'}
+          {mostPlayed?.track.title ?? '—'}
         </p>
 
         <p className="mt-1 truncate text-xs text-white/35">
-          {historyTracks[0]?.artist ?? '—'}
+          {mostPlayed
+            ? `${mostPlayed.track.artist?.name ?? 'Artista'} · ${mostPlayed.count} reproduções`
+            : '—'}
         </p>
       </div>
     </section>
   )
 }
 
+function formatPlayedAt(dateString: string) {
+  const date = new Date(dateString)
+  const now = new Date()
+
+  const diffMs = now.getTime() - date.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) {
+    return 'Agora'
+  }
+
+  if (diffMinutes < 60) {
+    return `Há ${diffMinutes}min`
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60)
+
+  if (diffHours < 24) {
+    return `Há ${diffHours}h`
+  }
+
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffDays === 1) {
+    return 'Ontem'
+  }
+
+  if (diffDays < 7) {
+    return `Há ${diffDays} dias`
+  }
+
+  return date.toLocaleDateString('pt-PT', {
+    day: '2-digit',
+    month: 'short',
+  })
+}
+
 function HistoryList({
-  tracks,
+  items,
   onPlay,
 }: {
-  tracks: Track[]
+  items: {
+    history: PlaybackHistory
+    track: Track
+  }[]
   onPlay: (track: Track) => void
 }) {
   return (
@@ -136,14 +253,17 @@ function HistoryList({
         </div>
 
         <span className="text-xs text-white/35">
-          {tracks.length} músicas
+          {items.length} reproduções
         </span>
       </div>
 
       <div>
-        {tracks.length > 0 ? (
-          tracks.map((track, index) => (
-            <div key={`${track.id}-${index}`} className="group">
+        {items.length > 0 ? (
+          items.map(({ history, track }, index) => (
+            <div
+              key={history.id}
+              className="group"
+            >
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <TrackRow
@@ -154,13 +274,7 @@ function HistoryList({
                 </div>
 
                 <span className="hidden shrink-0 text-xs text-white/25 md:block">
-                  {index === 0
-                    ? 'Agora'
-                    : index === 1
-                      ? 'Há 2h'
-                      : index === 2
-                        ? 'Ontem'
-                        : `${index} dias`}
+                  {formatPlayedAt(history.playedAt)}
                 </span>
               </div>
             </div>
@@ -183,7 +297,54 @@ function HistoryList({
   )
 }
 
-function MostPlayed() {
+function MostPlayed({
+  items,
+}: {
+  items: {
+    history: PlaybackHistory
+    track: Track
+  }[]
+}) {
+  const mostPlayed = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        track: Track
+        count: number
+        lastPlayedAt: string
+      }
+    >()
+
+    for (const item of items) {
+      const existing = map.get(item.track.id)
+
+      if (existing) {
+        existing.count += 1
+
+        if (
+          new Date(item.history.playedAt).getTime() >
+          new Date(existing.lastPlayedAt).getTime()
+        ) {
+          existing.lastPlayedAt = item.history.playedAt
+        }
+      } else {
+        map.set(item.track.id, {
+          track: item.track,
+          count: 1,
+          lastPlayedAt: item.history.playedAt,
+        })
+      }
+    }
+
+    return Array.from(map.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4)
+  }, [items])
+
+  if (mostPlayed.length === 0) {
+    return null
+  }
+
   return (
     <section className="mt-12">
       <div className="mb-5">
@@ -197,9 +358,9 @@ function MostPlayed() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {historyTracks.slice(0, 4).map((track, index) => (
+        {mostPlayed.map((item, index) => (
           <div
-            key={track.id}
+            key={item.track.id}
             className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#131513] p-3"
           >
             <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/5 font-mono text-[10px] text-white/40">
@@ -207,18 +368,25 @@ function MostPlayed() {
             </div>
 
             <img
-              src={track.cover}
-              alt={`Capa de ${track.title}`}
+              src={item.track.coverUrl || '/user.jpg'}
+              alt={`Capa de ${item.track.title}`}
               className="size-11 shrink-0 rounded-md object-cover"
             />
 
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">
-                {track.title}
+                {item.track.title}
               </p>
 
               <p className="mt-1 truncate text-xs text-white/40">
-                {track.artist}
+                {item.track.artist?.name ?? 'Artista desconhecido'}
+              </p>
+
+              <p className="mt-1 text-[10px] text-white/25">
+                {item.count}{' '}
+                {item.count === 1
+                  ? 'reprodução'
+                  : 'reproduções'}
               </p>
             </div>
           </div>
@@ -232,28 +400,153 @@ export default function MusicHistory() {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState('Histórico')
 
+  const [history, setHistory] = useState<PlaybackHistory[]>([])
+  const [tracks, setTracks] = useState<Track[]>([])
+
+  const [loading, setLoading] = useState(true)
+  const [clearing, setClearing] = useState(false)
+
   const { play } = usePlayerStore()
 
-  const results = useMemo(() => {
-    if (!query.trim()) return historyTracks
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        setLoading(true)
 
-    return historyTracks.filter((track) =>
-      `${track.title} ${track.artist} ${track.genre}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
+        const [historyResponse, tracksResponse] =
+          await Promise.all([
+            usersService.getHistory(),
+            tracksService.list(1, 100),
+          ])
+
+        setHistory(historyResponse.data)
+        setTracks(tracksResponse.data.data)
+      } catch (error) {
+        console.error(
+          'Erro ao carregar histórico:',
+          error,
+        )
+
+        toast.error(
+          'Não foi possível carregar o histórico.',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadHistory()
+  }, [])
+
+  const historyItems = useMemo(() => {
+    const trackMap = new Map(
+      tracks.map((track) => [track.id, track]),
     )
-  }, [query])
+
+    return history
+      .map((historyItem) => {
+        const track = trackMap.get(historyItem.trackId)
+
+        if (!track) {
+          return null
+        }
+
+        return {
+          history: historyItem,
+          track,
+        }
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          history: PlaybackHistory
+          track: Track
+        } => item !== null,
+      )
+  }, [history, tracks])
+
+  const results = useMemo(() => {
+    const normalizedQuery = query
+      .toLowerCase()
+      .trim()
+
+    if (!normalizedQuery) {
+      return historyItems
+    }
+
+    return historyItems.filter(
+      ({ track }) => {
+        const searchableText = `
+          ${track.title}
+          ${track.artist?.name ?? ''}
+          ${track.genre?.name ?? ''}
+        `.toLowerCase()
+
+        return searchableText.includes(
+          normalizedQuery,
+        )
+      },
+    )
+  }, [historyItems, query])
 
   const playTrack = (track: Track) => {
     play(track)
-    toast.success(`Reproduzindo ${track.title}`)
+
+    toast.success(
+      `Reproduzindo ${track.title}`,
+    )
+  }
+
+  const handleClearHistory = async () => {
+    if (history.length === 0) {
+      toast.info('Seu histórico já está vazio.')
+      return
+    }
+
+    try {
+      setClearing(true)
+
+      await usersService.clearHistory()
+
+      setHistory([])
+
+      toast.success('Histórico limpo.')
+    } catch (error) {
+      console.error(
+        'Erro ao limpar histórico:',
+        error,
+      )
+
+      toast.error(
+        'Não foi possível limpar o histórico.',
+      )
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const handleSidebarSelect = (label: string) => {
+    const routes: Record<string, string> = {
+      Início: '/',
+      Descobrir: '/discover',
+      Biblioteca: '/library',
+      Histórico: '/history',
+    }
+
+    if (routes[label]) {
+      window.location.href = routes[label]
+    }
   }
 
   return (
     <div className="min-h-screen bg-[#0c0d0c] text-white">
       <MusicSidebar
         active={active}
-        onSelect={setActive}
+        onSelect={(label) => {
+          setActive(label)
+          handleSidebarSelect(label)
+        }}
       />
 
       <Toaster
@@ -263,7 +556,8 @@ export default function MusicHistory() {
           style: {
             background: '#1b1e1b',
             color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
+            border:
+              '1px solid rgba(255,255,255,.1)',
           },
         }}
       />
@@ -275,16 +569,76 @@ export default function MusicHistory() {
         />
 
         <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-9 md:py-10">
-          <HistoryHeader />
-
-          <HistoryStats />
-
-          <HistoryList
-            tracks={results}
-            onPlay={playTrack}
+          <HistoryHeader
+            onClear={handleClearHistory}
+            clearing={clearing}
           />
 
-          {!query && <MostPlayed />}
+          {loading ? (
+            <div className="flex min-h-[400px] items-center justify-center">
+              <div className="text-sm text-white/40">
+                Carregando seu histórico...
+              </div>
+            </div>
+          ) : (
+            <>
+              <HistoryStats
+                history={history}
+                tracks={tracks}
+              />
+
+              {query ? (
+                <section>
+                  <div className="mb-5">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
+                      Pesquisa
+                    </p>
+
+                    <h2 className="mt-1 text-xl font-semibold">
+                      Resultados no histórico
+                    </h2>
+
+                    <p className="mt-1 text-xs text-white/35">
+                      {results.length}{' '}
+                      {results.length === 1
+                        ? 'reprodução encontrada'
+                        : 'reproduções encontradas'}
+                    </p>
+                  </div>
+
+                  {results.length > 0 ? (
+                    <HistoryList
+                      items={results}
+                      onPlay={playTrack}
+                    />
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-[#131513] py-20 text-center">
+                      <History className="mx-auto size-8 text-white/20" />
+
+                      <p className="mt-4 text-lg font-medium">
+                        Nenhuma reprodução encontrada
+                      </p>
+
+                      <p className="mt-2 text-sm text-white/40">
+                        Tente pesquisar por outra música ou artista.
+                      </p>
+                    </div>
+                  )}
+                </section>
+              ) : (
+                <>
+                  <HistoryList
+                    items={results}
+                    onPlay={playTrack}
+                  />
+
+                  <MostPlayed
+                    items={historyItems}
+                  />
+                </>
+              )}
+            </>
+          )}
         </div>
       </main>
     </div>

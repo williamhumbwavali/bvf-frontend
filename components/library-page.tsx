@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Download,
   Heart,
@@ -8,38 +8,51 @@ import {
   Music2,
   Play,
   Plus,
-  Upload,
 } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import Link from 'next/link'
 
-import { tracks, type Track } from '@/types/music'
 import { usePlayerStore } from '@/stores/player-store'
 
-import MusicPlayer from './music-player'
 import MusicSidebar from './music-sidebar'
 import MusicHeader from './music-header'
 import TrackRow from './track-row'
 
-type LibraryTab = 'Curtidas' | 'Playlists' | 'Downloads' | 'Publicadas'
+import {
+  Track,
+  tracksService,
+} from '@/services/tracks.service'
+
+import {
+  usersService,
+  Like,
+  DownloadHistory,
+} from '@/services/users.service'
+import { Playlist, playlistsService } from '@/services/playlists.service'
+
+type LibraryTab = 'Curtidas' | 'Playlists' | 'Downloads'
 
 function Cover({
   src,
   alt,
   className = '',
 }: {
-  src: string
+  src?: string
   alt: string
   className?: string
 }) {
   return (
     <img
-      src={src}
+      src={src || '/user.jpg'}
       alt={alt}
       className={`object-cover ${className}`}
     />
   )
 }
+
+/* =========================================================
+   HEADER
+========================================================= */
 
 function LibraryHeader() {
   return (
@@ -54,49 +67,44 @@ function LibraryHeader() {
         </h1>
 
         <p className="mt-2 max-w-xl text-sm text-white/45">
-          Tudo o que você guardou, baixou e publicou em um só lugar.
+          Tudo o que você guardou e baixou em um só lugar.
         </p>
       </div>
-
-      <Link
-        href="/tracks/upload"
-        className="flex w-fit items-center gap-2 rounded-lg bg-[#d8ff3e] px-4 py-2.5 text-xs font-bold text-[#101110] transition-transform hover:scale-[1.02]"
-      >
-        <Upload className="size-4" />
-        Publicar música
-      </Link>
     </div>
   )
 }
 
-function LibraryStats() {
-  const { liked } = usePlayerStore()
+/* =========================================================
+   STATS
+========================================================= */
 
+function LibraryStats({
+  likedCount,
+  downloadCount,
+}: {
+  likedCount: number
+  downloadCount: number
+}) {
   const stats = [
     {
       label: 'Curtidas',
-      value: liked.length,
+      value: likedCount,
       icon: Heart,
     },
     {
       label: 'Playlists',
-      value: 4,
+      value: 0,
       icon: ListMusic,
     },
     {
       label: 'Downloads',
-      value: 6,
+      value: downloadCount,
       icon: Download,
-    },
-    {
-      label: 'Publicadas',
-      value: 6,
-      icon: Music2,
     },
   ]
 
   return (
-    <section className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-3">
       {stats.map(({ label, value, icon: Icon }) => (
         <div
           key={label}
@@ -119,6 +127,10 @@ function LibraryStats() {
   )
 }
 
+/* =========================================================
+   TABS
+========================================================= */
+
 function LibraryTabs({
   active,
   onChange,
@@ -130,23 +142,19 @@ function LibraryTabs({
     label: LibraryTab
     icon: typeof Heart
   }[] = [
-    {
-      label: 'Curtidas',
-      icon: Heart,
-    },
-    {
-      label: 'Playlists',
-      icon: ListMusic,
-    },
-    {
-      label: 'Downloads',
-      icon: Download,
-    },
-    {
-      label: 'Publicadas',
-      icon: Music2,
-    },
-  ]
+      {
+        label: 'Curtidas',
+        icon: Heart,
+      },
+      {
+        label: 'Playlists',
+        icon: ListMusic,
+      },
+      {
+        label: 'Downloads',
+        icon: Download,
+      },
+    ]
 
   return (
     <div className="mb-8 flex gap-1 overflow-x-auto rounded-xl bg-white/5 p-1">
@@ -154,11 +162,10 @@ function LibraryTabs({
         <button
           key={label}
           onClick={() => onChange(label)}
-          className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs transition-colors ${
-            active === label
+          className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs transition-colors ${active === label
               ? 'bg-white/10 text-white'
               : 'text-white/40 hover:text-white'
-          }`}
+            }`}
         >
           <Icon className="size-4" />
           {label}
@@ -168,17 +175,21 @@ function LibraryTabs({
   )
 }
 
+/* =========================================================
+   CURTIDAS
+========================================================= */
+
 function LikedTracks({
-  tracks: libraryTracks,
+  tracks,
+  likedIds,
   onPlay,
 }: {
   tracks: Track[]
+  likedIds: Set<string>
   onPlay: (track: Track) => void
 }) {
-  const { liked } = usePlayerStore()
-
-  const likedTracks = libraryTracks.filter((track) =>
-    liked.includes(track.id),
+  const likedTracks = tracks.filter((track) =>
+    likedIds.has(track.id),
   )
 
   if (likedTracks.length === 0) {
@@ -193,16 +204,14 @@ function LikedTracks({
 
   return (
     <section>
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            Músicas curtidas
-          </h2>
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold tracking-tight">
+          Músicas curtidas
+        </h2>
 
-          <p className="mt-1 text-xs text-white/35">
-            {likedTracks.length} músicas na sua coleção
-          </p>
-        </div>
+        <p className="mt-1 text-xs text-white/35">
+          {likedTracks.length} músicas na sua coleção
+        </p>
       </div>
 
       <div>
@@ -219,37 +228,11 @@ function LikedTracks({
   )
 }
 
-function PlaylistGrid() {
-  const playlists = [
-    {
-      id: 'night',
-      title: 'Depois da meia-noite',
-      description: 'Sons para ouvir quando tudo fica quieto.',
-      tracks: 24,
-      cover: tracks[0]?.cover,
-    },
-    {
-      id: 'favorites',
-      title: 'Meus favoritos',
-      description: 'As músicas que sempre voltam.',
-      tracks: 18,
-      cover: tracks[1]?.cover,
-    },
-    {
-      id: 'late',
-      title: 'Late Night',
-      description: 'Para atravessar a madrugada.',
-      tracks: 31,
-      cover: tracks[2]?.cover,
-    },
-    {
-      id: 'emo',
-      title: 'Emo Rap',
-      description: 'Dor, nostalgia e batidas.',
-      tracks: 16,
-      cover: tracks[3]?.cover ?? tracks[0]?.cover,
-    },
-  ]
+/* =========================================================
+   PLAYLISTS
+========================================================= */
+
+function PlaylistGrid({ playlists }: {playlists: Playlist[]}) {
 
   return (
     <section>
@@ -264,13 +247,13 @@ function PlaylistGrid() {
           </p>
         </div>
 
-        <button
-          onClick={() => toast.success('Nova playlist criada')}
+        <Link
+          href='/playlists/create'
           className="flex items-center gap-2 text-xs text-white/40 hover:text-[#d8ff3e]"
         >
           <Plus className="size-4" />
           Nova playlist
-        </button>
+        </Link>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -278,22 +261,14 @@ function PlaylistGrid() {
           <button
             key={playlist.id}
             onClick={() =>
-              toast.info(`${playlist.title} será aberta em breve`)
+              toast.info(
+                `${playlist.title} será aberta em breve`,
+              )
             }
             className="group text-left"
           >
-            <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-white/5">
-              {playlist.cover ? (
-                <Cover
-                  src={playlist.cover}
-                  alt={`Capa da playlist ${playlist.title}`}
-                  className="size-full transition-transform duration-500 group-hover:scale-105"
-                />
-              ) : (
-                <div className="flex size-full items-center justify-center">
-                  <ListMusic className="size-8 text-white/20" />
-                </div>
-              )}
+            <div className="relative mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white/5">
+              <ListMusic className="size-8 text-white/20" />
 
               <span className="absolute bottom-3 right-3 flex size-10 translate-y-2 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110] opacity-0 shadow-xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
                 <Play className="ml-0.5 size-4 fill-current" />
@@ -303,10 +278,6 @@ function PlaylistGrid() {
             <h3 className="text-sm font-medium">
               {playlist.title}
             </h3>
-
-            <p className="mt-1 text-xs text-white/35">
-              {playlist.tracks} músicas
-            </p>
 
             <p className="mt-1 truncate text-xs text-white/25">
               {playlist.description}
@@ -318,14 +289,22 @@ function PlaylistGrid() {
   )
 }
 
+/* =========================================================
+   DOWNLOADS
+========================================================= */
+
 function DownloadsSection({
-  tracks: libraryTracks,
+  tracks,
+  downloadIds,
   onPlay,
 }: {
   tracks: Track[]
+  downloadIds: Set<string>
   onPlay: (track: Track) => void
 }) {
-  const downloadedTracks = libraryTracks.slice(0, 4)
+  const downloadedTracks = tracks.filter((track) =>
+    downloadIds.has(track.id),
+  )
 
   if (downloadedTracks.length === 0) {
     return (
@@ -363,58 +342,9 @@ function DownloadsSection({
   )
 }
 
-function PublishedSection({
-  tracks: libraryTracks,
-  onPlay,
-}: {
-  tracks: Track[]
-  onPlay: (track: Track) => void
-}) {
-  const publishedTracks = libraryTracks.slice(0, 3)
-
-  return (
-    <section>
-      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            Suas músicas
-          </h2>
-
-          <p className="mt-1 text-xs text-white/35">
-            Músicas que você publicou na plataforma.
-          </p>
-        </div>
-
-        <Link
-          href="/tracks/upload"
-          className="flex w-fit items-center gap-2 text-xs text-[#d8ff3e] hover:underline"
-        >
-          <Plus className="size-4" />
-          Publicar outra
-        </Link>
-      </div>
-
-      {publishedTracks.length > 0 ? (
-        <div>
-          {publishedTracks.map((track, index) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              index={index}
-              onPlay={onPlay}
-            />
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={Music2}
-          title="Você ainda não publicou músicas"
-          description="Publique sua primeira música e comece a construir seu catálogo."
-        />
-      )}
-    </section>
-  )
-}
+/* =========================================================
+   EMPTY STATE
+========================================================= */
 
 function EmptyState({
   icon: Icon,
@@ -442,31 +372,162 @@ function EmptyState({
   )
 }
 
+/* =========================================================
+   LIBRARY PAGE
+========================================================= */
+
 export default function LibraryPage() {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] =
     useState<LibraryTab>('Curtidas')
 
+  const [tracks, setTracks] = useState<Track[]>([])
+  const [likedIds, setLikedIds] = useState<Set<string>>(
+    new Set(),
+  )
+  const [downloadIds, setDownloadIds] =
+    useState<Set<string>>(new Set())
+  const [playlists, setPlaylists] = useState<Playlist[]>([])
+
+  const [loading, setLoading] = useState(true)
+
   const { play } = usePlayerStore()
 
+  /* =======================================================
+     CARREGAR DADOS
+  ======================================================= */
+
+  useEffect(() => {
+    async function loadLibrary() {
+      try {
+        setLoading(true)
+
+        const [
+          tracksResponse,
+          likedResponse,
+          downloadsResponse,
+          playlistsResponse
+        ] = await Promise.all([
+          tracksService.list(1, 100),
+          usersService.getLikedTracks(),
+          usersService.getDownloads(),
+          playlistsService.list(),
+        ])
+
+        const playlists = playlistsResponse.data
+
+        /*
+         * tracksService.list()
+         *
+         * response:
+         * {
+         *   data: {
+         *     data: Track[],
+         *     meta: {...}
+         *   }
+         * }
+         */
+
+        setTracks(tracksResponse.data.data)
+
+        /*
+         * Curtidas:
+         *
+         * [
+         *   {
+         *     id,
+         *     userId,
+         *     trackId,
+         *     createdAt
+         *   }
+         * ]
+         */
+
+        const likedSet = new Set(
+          likedResponse.data.map(
+            (like: Like) => like.trackId,
+          ),
+        )
+
+        setLikedIds(likedSet)
+
+        /*
+         * Downloads:
+         *
+         * [
+         *   {
+         *     id,
+         *     userId,
+         *     trackId,
+         *     downloadedAt
+         *   }
+         * ]
+         */
+
+        const downloadSet = new Set(
+          downloadsResponse.data.map(
+            (download: DownloadHistory) =>
+              download.trackId,
+          ),
+        )
+
+        setDownloadIds(downloadSet)
+      } catch (error) {
+        console.error(
+          'Erro ao carregar biblioteca:',
+          error,
+        )
+
+        toast.error(
+          'Não foi possível carregar sua biblioteca.',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadLibrary()
+  }, [])
+
+  /* =======================================================
+     PESQUISA
+  ======================================================= */
+
   const filteredTracks = useMemo(() => {
-    const normalizedQuery = query.toLowerCase().trim()
+    const normalizedQuery = query
+      .toLowerCase()
+      .trim()
 
     if (!normalizedQuery) {
       return tracks
     }
 
-    return tracks.filter((track) =>
-      `${track.title} ${track.artist} ${track.genre}`
-        .toLowerCase()
-        .includes(normalizedQuery),
-    )
-  }, [query])
+    return tracks.filter((track) => {
+      const searchableText = `
+        ${track.title}
+        ${track.artist?.name ?? ''}
+        ${track.genre?.name ?? ''}
+      `.toLowerCase()
+
+      return searchableText.includes(normalizedQuery)
+    })
+  }, [tracks, query])
+
+  /* =======================================================
+     PLAY
+  ======================================================= */
 
   const playTrack = (track: Track) => {
     play(track)
-    toast.success(`Reproduzindo ${track.title}`)
+
+    toast.success(
+      `Reproduzindo ${track.title}`,
+    )
   }
+
+  /* =======================================================
+     SIDEBAR
+  ======================================================= */
 
   const handleSidebarSelect = (label: string) => {
     const routes: Record<string, string> = {
@@ -480,6 +541,46 @@ export default function LibraryPage() {
       window.location.href = routes[label]
     }
   }
+
+  /* =======================================================
+     LOADING
+  ======================================================= */
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0c0d0c] text-white">
+        <MusicSidebar
+          active="Biblioteca"
+          onSelect={handleSidebarSelect}
+        />
+
+        <main className="min-h-screen pb-24 lg:pl-60">
+          <MusicHeader
+            query={query}
+            setQuery={setQuery}
+          />
+
+          <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-9 md:py-10">
+            <LibraryHeader />
+
+            <div className="space-y-4">
+              <div className="h-24 animate-pulse rounded-xl bg-white/5" />
+
+              <div className="h-12 animate-pulse rounded-xl bg-white/5" />
+
+              <div className="h-20 animate-pulse rounded-xl bg-white/5" />
+
+              <div className="h-20 animate-pulse rounded-xl bg-white/5" />
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
     <div className="min-h-screen bg-[#0c0d0c] text-white">
@@ -495,7 +596,8 @@ export default function LibraryPage() {
           style: {
             background: '#1b1e1b',
             color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
+            border:
+              '1px solid rgba(255,255,255,.1)',
           },
         }}
       />
@@ -509,12 +611,19 @@ export default function LibraryPage() {
         <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-9 md:py-10">
           <LibraryHeader />
 
-          <LibraryStats />
+          <LibraryStats
+            likedCount={likedIds.size}
+            downloadCount={downloadIds.size}
+          />
 
           <LibraryTabs
             active={activeTab}
             onChange={setActiveTab}
           />
+
+          {/* =================================================
+              PESQUISA
+          ================================================= */}
 
           {query ? (
             <section>
@@ -524,20 +633,23 @@ export default function LibraryPage() {
                 </h2>
 
                 <p className="mt-1 text-xs text-white/35">
-                  {filteredTracks.length} músicas encontradas
+                  {filteredTracks.length}{' '}
+                  músicas encontradas
                 </p>
               </div>
 
               {filteredTracks.length > 0 ? (
                 <div>
-                  {filteredTracks.map((track, index) => (
-                    <TrackRow
-                      key={track.id}
-                      track={track}
-                      index={index}
-                      onPlay={playTrack}
-                    />
-                  ))}
+                  {filteredTracks.map(
+                    (track, index) => (
+                      <TrackRow
+                        key={track.id}
+                        track={track}
+                        index={index}
+                        onPlay={playTrack}
+                      />
+                    ),
+                  )}
                 </div>
               ) : (
                 <EmptyState
@@ -549,27 +661,34 @@ export default function LibraryPage() {
             </section>
           ) : (
             <>
+              {/* =================================================
+                  CURTIDAS
+              ================================================= */}
+
               {activeTab === 'Curtidas' && (
                 <LikedTracks
                   tracks={tracks}
+                  likedIds={likedIds}
                   onPlay={playTrack}
                 />
               )}
 
+              {/* =================================================
+                  PLAYLISTS
+              ================================================= */}
+
               {activeTab === 'Playlists' && (
-                <PlaylistGrid />
+                <PlaylistGrid playlists={playlists} />
               )}
+
+              {/* =================================================
+                  DOWNLOADS
+              ================================================= */}
 
               {activeTab === 'Downloads' && (
                 <DownloadsSection
                   tracks={tracks}
-                  onPlay={playTrack}
-                />
-              )}
-
-              {activeTab === 'Publicadas' && (
-                <PublishedSection
-                  tracks={tracks}
+                  downloadIds={downloadIds}
                   onPlay={playTrack}
                 />
               )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   Compass,
@@ -13,7 +13,6 @@ import {
 import { Toaster, toast } from 'sonner'
 import Link from 'next/link'
 
-import { tracks, type Track } from '@/types/music'
 import { usePlayerStore } from '@/stores/player-store'
 
 import MusicPlayer from './music-player'
@@ -21,33 +20,47 @@ import MusicSidebar from './music-sidebar'
 import MusicHeader from './music-header'
 import TrackRow from './track-row'
 
-const genres = [
-  'Todos',
-  'Emo Rap',
-  'Hip Hop',
-  'R&B',
-  'Trap',
-  'Lo-fi',
-  'Indie',
-]
+import {
+  Artist,
+  ArtistsService,
+} from '@/services/artists.service'
+
+import {
+  Track,
+  tracksService,
+} from '@/services/tracks.service'
+
+import {
+  Genre,
+  genresService,
+} from '@/services/genre.service'
+import { useRouter } from 'next/navigation'
+
+/* =========================================================
+   COVER
+========================================================= */
 
 function Cover({
   src,
   alt,
   className = '',
 }: {
-  src: string
+  src?: string | null
   alt: string
   className?: string
 }) {
   return (
     <img
-      src={src}
+      src={src || '/public/user.jpg'}
       alt={alt}
       className={`object-cover ${className}`}
     />
   )
 }
+
+/* =========================================================
+   DISCOVER HERO
+========================================================= */
 
 function DiscoverHero({
   track,
@@ -56,15 +69,17 @@ function DiscoverHero({
   track: Track
   onPlay: (track: Track) => void
 }) {
-  const { currentTrack, isPlaying } = usePlayerStore()
+  const { currentTrack, isPlaying } =
+    usePlayerStore()
 
   const playing =
-    isPlaying && currentTrack?.id === track.id
+    isPlaying &&
+    currentTrack?.id === track.id
 
   return (
     <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#151815]">
       <Cover
-        src={track.cover}
+        src={track.coverUrl}
         alt={`Capa de ${track.title}`}
         className="absolute inset-0 size-full opacity-45"
       />
@@ -78,7 +93,7 @@ function DiscoverHero({
           </span>
 
           <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#d8ff3e]">
-            Descoberta da noite
+            Descobertas
           </span>
         </div>
 
@@ -88,15 +103,29 @@ function DiscoverHero({
           </p>
 
           <h1 className="text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
-            {track.title}
+            <Link
+              href={`/music/${track.id}`}
+              className='transition-colors hover:text-[#d8ff3e] hover:underline'
+            >
+              {track.title}
+            </Link>
           </h1>
 
           <p className="mt-2 text-sm text-white/55">
-            {track.artist}
+            <Link
+              href={`/artist/${track.artist?.handle}`}
+              className='transition-colors hover:text-[#d8ff3e] hover:underline'
+            >
+              {track.artist?.name}
+            </Link>
+
             <span className="px-1">·</span>
-            {track.genre}
+
+            {track.genre?.name ?? 'Sem gênero'}
+
             <span className="px-1">·</span>
-            {track.plays} reproduções
+
+            {track.playCount ?? 0} reproduções
           </p>
 
           <button
@@ -109,6 +138,7 @@ function DiscoverHero({
                   <span className="h-3 w-0.5 bg-[#101110]" />
                   <span className="h-3 w-0.5 bg-[#101110]" />
                 </span>
+
                 Tocando agora
               </>
             ) : (
@@ -124,10 +154,16 @@ function DiscoverHero({
   )
 }
 
+/* =========================================================
+   GENRE NAVIGATION
+========================================================= */
+
 function GenreNavigation({
+  genres,
   active,
   onChange,
 }: {
+  genres: Genre[]
   active: string
   onChange: (genre: string) => void
 }) {
@@ -142,17 +178,26 @@ function GenreNavigation({
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-2">
+        <button
+          onClick={() => onChange('Todos')}
+          className={`shrink-0 rounded-full border px-4 py-2 text-xs transition-colors ${active === 'Todos'
+            ? 'border-[#d8ff3e]/40 bg-[#d8ff3e] text-[#101110]'
+            : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
+            }`}
+        >
+          Todos
+        </button>
+
         {genres.map((genre) => (
           <button
-            key={genre}
-            onClick={() => onChange(genre)}
-            className={`shrink-0 rounded-full border px-4 py-2 text-xs transition-colors ${
-              active === genre
-                ? 'border-[#d8ff3e]/40 bg-[#d8ff3e] text-[#101110]'
-                : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
-            }`}
+            key={genre.id}
+            onClick={() => onChange(genre.name)}
+            className={`shrink-0 rounded-full border px-4 py-2 text-xs transition-colors ${active === genre.name
+              ? 'border-[#d8ff3e]/40 bg-[#d8ff3e] text-[#101110]'
+              : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
+              }`}
           >
-            {genre}
+            {genre.name}
           </button>
         ))}
       </div>
@@ -160,15 +205,17 @@ function GenreNavigation({
   )
 }
 
+/* =========================================================
+   TRENDING
+========================================================= */
+
 function TrendingSection({
-  tracks: discoverTracks,
+  tracks,
   onPlay,
 }: {
   tracks: Track[]
   onPlay: (track: Track) => void
 }) {
-  const { liked, toggleLike } = usePlayerStore()
-
   return (
     <section className="mt-12">
       <div className="mb-5 flex items-center justify-between">
@@ -187,36 +234,52 @@ function TrendingSection({
         </div>
 
         <button
-          onClick={() => toast.info('Mais músicas em alta em breve')}
+          onClick={() =>
+            toast.info(
+              'Mais músicas em alta em breve',
+            )
+          }
           className="hidden items-center gap-1 text-xs text-white/40 hover:text-[#d8ff3e] sm:flex"
         >
           Ver tudo
+
           <ArrowRight className="size-3" />
         </button>
       </div>
 
       <div>
-        {discoverTracks.slice(0, 6).map((track, index) => (
-          <TrackRow
-            key={track.id}
-            track={track}
-            index={index}
-            onPlay={onPlay}
-          />
-        ))}
+        {tracks.slice(0, 6).map(
+          (track, index) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              index={index}
+              onPlay={onPlay}
+            />
+          ),
+        )}
       </div>
     </section>
   )
 }
 
+/* =========================================================
+   NEW RELEASES
+========================================================= */
+
 function NewReleases({
-  tracks: discoverTracks,
+  tracks,
   onPlay,
 }: {
   tracks: Track[]
   onPlay: (track: Track) => void
 }) {
-  const { liked, toggleLike } = usePlayerStore()
+  const router = useRouter()
+
+  const {
+    liked,
+    toggleLike,
+  } = usePlayerStore()
 
   return (
     <section className="mt-12">
@@ -231,12 +294,18 @@ function NewReleases({
           </div>
 
           <p className="mt-1 text-xs text-white/35">
-            Descubra músicas recém-publicadas por artistas.
+            Descubra músicas recém-publicadas
+            por artistas.
           </p>
         </div>
 
         <button
-          onClick={() => toast.info('Todos os lançamentos em breve')}
+          type="button"
+          onClick={() =>
+            toast.info(
+              'Todos os lançamentos em breve',
+            )
+          }
           className="hidden text-xs text-white/40 hover:text-[#d8ff3e] sm:block"
         >
           Ver tudo →
@@ -244,7 +313,7 @@ function NewReleases({
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {discoverTracks.slice(0, 4).map((track) => {
+        {tracks.slice(0, 4).map((track) => {
           const isLiked = liked.includes(track.id)
 
           return (
@@ -252,12 +321,15 @@ function NewReleases({
               key={track.id}
               className="group min-w-0"
             >
+              {/* Capa: reproduz */}
               <button
+                type="button"
                 onClick={() => onPlay(track)}
                 className="relative mb-3 aspect-square w-full overflow-hidden rounded-xl bg-white/5"
+                aria-label={`Reproduzir ${track.title}`}
               >
                 <Cover
-                  src={track.cover}
+                  src={track.coverUrl}
                   alt={`Capa de ${track.title}`}
                   className="size-full transition-transform duration-500 group-hover:scale-105"
                 />
@@ -269,22 +341,47 @@ function NewReleases({
 
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-medium">
+                  {/* Título: abre a página da música */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/music/${track.id}`)
+                    }
+                    className="block max-w-full truncate text-left text-sm font-medium transition-colors hover:text-[#d8ff3e] hover:underline"
+                  >
                     {track.title}
-                  </h3>
+                  </button>
 
-                  <p className="mt-1 truncate text-xs text-white/40">
-                    {track.artist}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/artist/${track.artist?.handle}`)
+                    }
+                    className="block max-w-full text-left"
+                  >
+                    <p className="tmt-1 truncate text-xs text-white/40 transition-colors hover:text-[#d8ff3e] hover:underline">
+                      {track.artist?.name}
+                    </p>
+                  </button>
 
                   <p className="mt-1 text-[10px] text-white/25">
-                    {track.genre}
+                    {track.genre?.name ??
+                      'Sem gênero'}
                   </p>
                 </div>
 
+                {/* Like */}
                 <button
-                  aria-label={`Curtir ${track.title}`}
-                  onClick={() => toggleLike(track.id)}
+                  type="button"
+                  aria-label={
+                    isLiked
+                      ? `Remover curtida de ${track.title}`
+                      : `Curtir ${track.title}`
+                  }
+                  aria-pressed={isLiked}
+                  onClick={() =>
+                    toggleLike(track.id)
+                  }
                   className={
                     isLiked
                       ? 'pt-0.5 text-[#d8ff3e]'
@@ -292,9 +389,10 @@ function NewReleases({
                   }
                 >
                   <Heart
-                    className={`size-4 ${
-                      isLiked ? 'fill-current' : ''
-                    }`}
+                    className={`size-4 ${isLiked
+                      ? 'fill-current'
+                      : ''
+                      }`}
                   />
                 </button>
               </div>
@@ -306,37 +404,44 @@ function NewReleases({
   )
 }
 
+/* =========================================================
+   POPULAR ARTISTS
+========================================================= */
+
 function PopularArtists() {
-  const artists = [
-    {
-      id: 'nox',
-      name: 'Lil Peep',
-      genre: 'Emo Rap',
-      image:
-        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFyqfW4o7xIlmSz2edGWH7V1Vu5VjWs0RFIV2kdat9ig&s',
-    },
-    {
-      id: 'xxx',
-      name: 'XXXTentacion',
-      genre: 'hip-hop/rap',
-      image:
-        'https://i.scdn.co/image/ab6761610000e5ebf0c20db5ef6c6fbe5135d2e4',
-    },
-    {
-      id: 'artist-3',
-      name: 'The Weeknd',
-      genre: 'R&B',
-      image:
-        'https://i.scdn.co/image/ab6761610000e5ebc1719ac9e6a75c1c25835018',
-    },
-    {
-      id: 'artist-4',
-      name: 'Kizua Trindade',
-      genre: 'hip-hop com a cultura africana',
-      image:
-        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8bJq6bn4tF5t2IGqiJlDEHksFic6UvDjb3OBEBV0QoiNba6If1_o4tKo&s=10',
-    },
-  ]
+  const [artists, setArtists] =
+    useState<Artist[]>([])
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const router = useRouter();
+
+  useEffect(() => {
+    async function loadArtists() {
+      try {
+        setLoading(true)
+
+        const response =
+          await ArtistsService.list(4)
+
+        setArtists(response.data)
+      } catch (error) {
+        console.error(
+          'Erro ao carregar artistas:',
+          error,
+        )
+
+        toast.error(
+          'Não foi possível carregar os artistas.',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadArtists()
+  }, [])
 
   return (
     <section className="mt-12">
@@ -350,150 +455,201 @@ function PopularArtists() {
         </div>
 
         <p className="mt-1 text-xs text-white/35">
-          Novas vozes para adicionar à sua biblioteca.
+          Novas vozes para adicionar à sua
+          biblioteca.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {artists.map((artist) => (
-          <button
-            key={artist.id}
-            onClick={() =>
-              toast.info(`Perfil de ${artist.name} em breve`)
-            }
-            className="group flex items-center gap-4 rounded-xl border border-white/8 bg-white/[0.025] p-4 text-left transition-colors hover:border-white/15 hover:bg-white/[0.05]"
-          >
-            <div className="size-14 shrink-0 overflow-hidden rounded-full">
-              <Cover
-                src={artist.image}
-                alt={artist.name}
-                className="size-full transition-transform duration-500 group-hover:scale-110"
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map(
+            (_, index) => (
+              <div
+                key={index}
+                className="h-[82px] animate-pulse rounded-xl border border-white/8 bg-white/[0.025]"
               />
-            </div>
-
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-medium">
-                {artist.name}
-              </h3>
-
-              <p className="mt-1 text-xs text-white/35">
-                {artist.genre}
-              </p>
-            </div>
-
-            <ArrowRight className="ml-auto size-4 shrink-0 text-white/20 transition-colors group-hover:text-[#d8ff3e]" />
-          </button>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function MoodSection({
-  onPlay,
-}: {
-  onPlay: (track: Track) => void
-}) {
-  const moods = [
-    {
-      title: 'Depois da meia-noite',
-      description: 'Sons para quando ninguém está acordado.',
-      genre: 'Emo Rap',
-    },
-    {
-      title: 'Dias cinzentos',
-      description: 'Para aqueles dias em que tudo parece distante.',
-      genre: 'Lo-fi',
-    },
-    {
-      title: 'Sem dormir',
-      description: 'Batidas para atravessar a madrugada.',
-      genre: 'Trap',
-    },
-  ]
-
-  return (
-    <section className="mt-12">
-      <div className="mb-5">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Encontre pelo momento
-        </h2>
-
-        <p className="mt-1 text-xs text-white/35">
-          Música para cada estado de espírito.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {moods.map((mood, index) => {
-          const track = tracks[index % tracks.length]
-
-          return (
+            ),
+          )}
+        </div>
+      ) : artists.length === 0 ? (
+        <div className="rounded-xl border border-white/8 bg-white/[0.025] py-10 text-center">
+          <p className="text-sm text-white/40">
+            Nenhum artista encontrado.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {artists.map((artist) => (
             <button
-              key={mood.title}
-              onClick={() => onPlay(track)}
-              className="group relative min-h-[180px] overflow-hidden rounded-2xl border border-white/8 bg-[#151715] p-6 text-left"
+              key={artist.id}
+              onClick={() =>
+                router.push(`/artist/${artist.handle}`)
+              }
+              className="group flex items-center gap-4 rounded-xl border border-white/8 bg-white/[0.025] p-4 text-left transition-colors hover:border-white/15 hover:bg-white/[0.05]"
             >
-              <Cover
-                src={track.cover}
-                alt=""
-                className="absolute inset-0 size-full opacity-20 transition-transform duration-500 group-hover:scale-105"
-              />
+              <div className="size-14 shrink-0 overflow-hidden rounded-full">
+                <Cover
+                  src={artist.image || '/user.jpg'}
+                  alt={artist.name}
+                  className="size-full transition-transform duration-500 group-hover:scale-110"
+                />
+              </div>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0c0d0c] via-[#0c0d0c]/70 to-transparent" />
-
-              <div className="relative flex h-full min-h-[130px] flex-col justify-end">
-                <span className="mb-2 font-mono text-[9px] uppercase tracking-[0.2em] text-[#d8ff3e]">
-                  {mood.genre}
-                </span>
-
-                <h3 className="text-lg font-semibold">
-                  {mood.title}
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-medium">
+                  {artist.name}
                 </h3>
 
-                <p className="mt-1 max-w-xs text-xs leading-5 text-white/40">
-                  {mood.description}
+                <p className="mt-1 truncate text-xs text-white/35">
+                  {artist.genre ??
+                    ''}
                 </p>
               </div>
+
+              <ArrowRight className="ml-auto size-4 shrink-0 text-white/20 transition-colors group-hover:text-[#d8ff3e]" />
             </button>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   )
 }
 
+/* =========================================================
+   DISCOVER PAGE
+========================================================= */
+
 export default function DiscoverPage() {
-  const [query, setQuery] = useState('')
-  const [activeGenre, setActiveGenre] = useState('Todos')
+  const [query, setQuery] =
+    useState('')
+
+  const [activeGenre, setActiveGenre] =
+    useState('Todos')
+
+  const [tracks, setTracks] =
+    useState<Track[]>([])
+
+  const [newReleases, setNewReleases] =
+    useState<Track[]>([])
+
+  const [genres, setGenres] =
+    useState<Genre[]>([])
+
+  const [loading, setLoading] =
+    useState(true)
 
   const { play } = usePlayerStore()
 
+  /* =======================================================
+     LOAD DISCOVER DATA
+  ======================================================= */
+
+  useEffect(() => {
+    async function loadDiscover() {
+      try {
+        setLoading(true)
+
+        const [
+          trendingResponse,
+          releasesResponse,
+          genresResponse,
+        ] = await Promise.all([
+          tracksService.trending(),
+          tracksService.list(1, 20),
+          genresService.list(),
+        ])
+
+        /*
+         * Músicas em alta
+         */
+        setTracks(
+          trendingResponse.data,
+        )
+
+        /*
+         * Últimos lançamentos
+         */
+        setNewReleases(
+          releasesResponse.data.data,
+        )
+
+        /*
+         * Gêneros
+         */
+        setGenres(
+          genresResponse.data,
+        )
+      } catch (error) {
+        console.error(
+          'Erro ao carregar Discover:',
+          error,
+        )
+
+        toast.error(
+          'Não foi possível carregar os dados.',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDiscover()
+  }, [])
+
+  /* =======================================================
+     FILTER TRACKS
+  ======================================================= */
+
   const filteredTracks = useMemo(() => {
-    const normalizedQuery = query.toLowerCase().trim()
+    const normalizedQuery =
+      query.toLowerCase().trim()
 
     return tracks.filter((track) => {
       const matchesQuery =
         !normalizedQuery ||
-        `${track.title} ${track.artist} ${track.genre}`
+        `${track.title} ${track.artist?.name ?? ''
+          } ${track.genre?.name ?? ''
+          }`
           .toLowerCase()
           .includes(normalizedQuery)
 
       const matchesGenre =
         activeGenre === 'Todos' ||
-        track.genre === activeGenre
+        track.genre?.name ===
+        activeGenre
 
-      return matchesQuery && matchesGenre
+      return (
+        matchesQuery &&
+        matchesGenre
+      )
     })
-  }, [query, activeGenre])
+  }, [
+    tracks,
+    query,
+    activeGenre,
+  ])
 
   const featuredTrack =
-    filteredTracks[0] ?? tracks[0]
+    filteredTracks[0] ??
+    tracks[0]
 
-  const playTrack = (track: Track) => {
+  /* =======================================================
+     PLAY TRACK
+  ======================================================= */
+
+  const playTrack = (
+    track: Track,
+  ) => {
     play(track)
-    toast.success(`Reproduzindo ${track.title}`)
+
+    toast.success(
+      `Reproduzindo ${track.title}`,
+    )
   }
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
     <div className="min-h-screen bg-[#0c0d0c] text-white">
@@ -505,15 +661,18 @@ export default function DiscoverPage() {
           }
 
           if (label === 'Descobrir') {
-            window.location.href = '/discover'
+            window.location.href =
+              '/discover'
           }
 
           if (label === 'Biblioteca') {
-            window.location.href = '/library'
+            window.location.href =
+              '/library'
           }
 
           if (label === 'Histórico') {
-            window.location.href = '/history'
+            window.location.href =
+              '/history'
           }
         }}
       />
@@ -525,7 +684,8 @@ export default function DiscoverPage() {
           style: {
             background: '#1b1e1b',
             color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
+            border:
+              '1px solid rgba(255,255,255,.1)',
           },
         }}
       />
@@ -538,6 +698,7 @@ export default function DiscoverPage() {
 
         <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-9 md:py-10">
           {/* Cabeçalho */}
+
           <div className="mb-8">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.24em] text-[#d8ff3e]">
               Explore
@@ -548,19 +709,42 @@ export default function DiscoverPage() {
             </h1>
 
             <p className="mt-2 max-w-xl text-sm text-white/45">
-              Encontre novos sons, artistas independentes e músicas
-              para ouvir quando a noite começar.
+              Encontre novos sons, artistas
+              independentes e músicas para
+              ouvir quando a noite começar.
             </p>
           </div>
 
           {/* Gêneros */}
+
           <GenreNavigation
+            genres={genres}
             active={activeGenre}
             onChange={setActiveGenre}
           />
 
-          {/* Pesquisa */}
-          {query ? (
+          {/* Loading */}
+
+          {loading ? (
+            <div className="mt-10 space-y-8">
+              <div className="h-[360px] animate-pulse rounded-2xl bg-white/[0.03]" />
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {Array.from({
+                  length: 4,
+                }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="aspect-square animate-pulse rounded-xl bg-white/[0.03]"
+                  />
+                ))}
+              </div>
+            </div>
+          ) : query ? (
+            /* =================================================
+               PESQUISA
+            ================================================= */
+
             <section className="mt-10">
               <div className="mb-5 flex items-center justify-between">
                 <div>
@@ -569,21 +753,25 @@ export default function DiscoverPage() {
                   </h2>
 
                   <p className="mt-1 text-xs text-white/35">
-                    Encontramos {filteredTracks.length} músicas.
+                    Encontramos{' '}
+                    {filteredTracks.length}{' '}
+                    músicas.
                   </p>
                 </div>
               </div>
 
               {filteredTracks.length > 0 ? (
                 <div>
-                  {filteredTracks.map((track, index) => (
-                    <TrackRow
-                      key={track.id}
-                      track={track}
-                      index={index}
-                      onPlay={playTrack}
-                    />
-                  ))}
+                  {filteredTracks.map(
+                    (track, index) => (
+                      <TrackRow
+                        key={track.id}
+                        track={track}
+                        index={index}
+                        onPlay={playTrack}
+                      />
+                    ),
+                  )}
                 </div>
               ) : (
                 <div className="rounded-2xl border border-white/8 py-20 text-center">
@@ -592,7 +780,8 @@ export default function DiscoverPage() {
                   </p>
 
                   <p className="mt-2 text-sm text-white/40">
-                    Tente outro artista, música ou gênero.
+                    Tente outro artista,
+                    música ou gênero.
                   </p>
                 </div>
               )}
@@ -600,32 +789,34 @@ export default function DiscoverPage() {
           ) : (
             <>
               {/* Destaque */}
-              <DiscoverHero
-                track={featuredTrack}
-                onPlay={playTrack}
-              />
+
+              {featuredTrack && (
+                <DiscoverHero
+                  track={featuredTrack}
+                  onPlay={playTrack}
+                />
+              )}
 
               {/* Tendências */}
+
               <TrendingSection
                 tracks={filteredTracks}
                 onPlay={playTrack}
               />
 
-              {/* Lançamentos */}
+              {/* Novos lançamentos */}
+
               <NewReleases
-                tracks={filteredTracks}
+                tracks={newReleases}
                 onPlay={playTrack}
               />
 
               {/* Artistas */}
+
               <PopularArtists />
 
-              {/* Por estado de espírito */}
-              <MoodSection
-                onPlay={playTrack}
-              />
-
               {/* CTA */}
+
               <section className="mt-12 overflow-hidden rounded-2xl border border-[#d8ff3e]/10 bg-[#151815] p-6 md:p-8">
                 <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -642,8 +833,11 @@ export default function DiscoverPage() {
                     </h2>
 
                     <p className="mt-2 max-w-lg text-sm text-white/40">
-                      Dê espaço para sua música. Publique suas faixas
-                      e deixe outras pessoas descobrirem seu som.
+                      Dê espaço para sua
+                      música. Publique suas
+                      faixas e deixe outras
+                      pessoas descobrirem seu
+                      som.
                     </p>
                   </div>
 
@@ -652,6 +846,7 @@ export default function DiscoverPage() {
                     className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#d8ff3e] px-5 py-3 text-xs font-bold text-[#101110] transition-transform hover:scale-[1.02]"
                   >
                     Publicar música
+
                     <ArrowRight className="size-4" />
                   </Link>
                 </div>

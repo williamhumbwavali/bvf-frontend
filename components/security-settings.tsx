@@ -92,7 +92,7 @@ export default function SecuritySettings() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0c0d0c] text-white">
+    <main className="min-h-screen bg-[#0c0d0c] text-white mb-12">
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-white/8 bg-[#0c0d0c]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-[72px] max-w-4xl items-center justify-between px-5 md:px-8">

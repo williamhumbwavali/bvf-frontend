@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import type { Track } from '@/services/tracks.service'
+import { tracksService, type Track } from '@/services/tracks.service'
 
 type RepeatMode = 'off' | 'one' | 'all'
 
@@ -20,7 +20,7 @@ interface PlayerStore {
   pause: () => void
   resume: () => void
 
-  toggleLike: (id: string) => void
+  toggleLike: (id: string) => Promise<void>
   setVolume: (value: number) => void
   toggleQueue: () => void
   toggleShuffle: () => void
@@ -106,12 +106,28 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     })
   },
 
-  toggleLike: (id) =>
-    set((state) => ({
-      liked: state.liked.includes(id)
-        ? state.liked.filter((x) => x !== id)
-        : [...state.liked, id],
-    })),
+  toggleLike: async (id) => {
+    const { liked } = get()
+    const isLiked = liked.includes(id)
+
+    try {
+      if (isLiked) {
+        await tracksService.unlike(id)
+
+        set((state) => ({
+          liked: state.liked.filter((x) => x !== id),
+        }))
+      } else {
+        await tracksService.like(id)
+
+        set((state) => ({
+          liked: [...state.liked, id],
+        }))
+      }
+    } catch (error) {
+      console.error('Erro ao alterar curtida:', error)
+    }
+  },
 
   setVolume: (volume) => {
     set({

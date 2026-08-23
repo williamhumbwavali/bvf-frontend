@@ -6,6 +6,12 @@ type RequestOptions = RequestInit & {
   auth?: boolean;
 };
 
+export interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message: string
+}
+
 class ApiClient {
   private baseUrl: string;
 

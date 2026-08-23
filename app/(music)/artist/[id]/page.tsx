@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
 import {
   ArrowLeft,
   Check,
@@ -13,10 +14,12 @@ import {
   Shuffle,
   UserPlus,
 } from 'lucide-react'
+
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { tracks } from '@/types/music'
+import { ArtistsService, type Artist } from '@/services/artists.service'
+import { type Track } from '@/services/tracks.service'
 import { usePlayerStore } from '@/stores/player-store'
 
 export default function ArtistPage() {
@@ -31,47 +34,75 @@ export default function ArtistPage() {
     toggleLike,
   } = usePlayerStore()
 
+  const [artist, setArtist] = useState<Artist | null>(null)
+  const [loading, setLoading] = useState(true)
   const [following, setFollowing] = useState(false)
 
-  /*
-   * Encontra o artista a partir das músicas disponíveis.
-   * Quando o backend estiver pronto, essa informação deverá
-   * vir diretamente da API de artistas.
-   */
-  const artistName = useMemo(() => {
-    const artist = tracks.find(
-      (track) => track.artist.toLowerCase() === String(params.id).toLowerCase()
-    )
+  const artistId = String(params.id)
 
-    return artist?.artist ?? 'Artista'
-  }, [params.id])
+  useEffect(() => {
+    async function loadArtist() {
+      try {
+        setLoading(true)
 
-  const artistTracks = useMemo(() => {
-    return tracks.filter(
-      (track) =>
-        track.artist.toLowerCase() === artistName.toLowerCase()
-    )
-  }, [artistName])
+        const response = await ArtistsService.getByUsername(artistId)
+
+        setArtist(response.data)
+      } catch (error) {
+        console.error('Erro ao carregar artista:', error)
+
+        toast.error('Não foi possível carregar o artista')
+        setArtist(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (artistId) {
+      loadArtist()
+    }
+  }, [artistId])
+
+  const artistTracks = useMemo<Track[]>(() => {
+    return artist?.tracks ?? []
+  }, [artist])
 
   const popularTracks = useMemo(() => {
     return [...artistTracks]
       .sort(
         (a, b) =>
-          (b.playCount ?? 0) - (a.playCount ?? 0)
+          (b.playCount ?? 0) -
+          (a.playCount ?? 0),
       )
       .slice(0, 5)
   }, [artistTracks])
 
-  const totalPlays = artistTracks.reduce(
-    (total, track) => total + (track.playCount ?? 0),
-    0
-  )
+  const recentTracks = useMemo(() => {
+    return [...artistTracks]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime(),
+      )
+      .slice(0, 4)
+  }, [artistTracks])
+
+  const totalPlays = useMemo(() => {
+    return artistTracks.reduce(
+      (total, track) =>
+        total + (track.playCount ?? 0),
+      0,
+    )
+  }, [artistTracks])
 
   const handlePlayArtist = () => {
-    const firstTrack = popularTracks[0] ?? artistTracks[0]
+    const firstTrack =
+      popularTracks[0] ?? artistTracks[0]
 
     if (!firstTrack) {
-      toast.info('Este artista ainda não possui músicas.')
+      toast.info(
+        'Este artista ainda não possui músicas.',
+      )
       return
     }
 
@@ -80,12 +111,14 @@ export default function ArtistPage() {
 
   const handleShuffle = () => {
     if (artistTracks.length === 0) {
-      toast.info('Este artista ainda não possui músicas.')
+      toast.info(
+        'Este artista ainda não possui músicas.',
+      )
       return
     }
 
     const randomIndex = Math.floor(
-      Math.random() * artistTracks.length
+      Math.random() * artistTracks.length,
     )
 
     const randomTrack = artistTracks[randomIndex]
@@ -100,21 +133,69 @@ export default function ArtistPage() {
 
     toast.success(
       following
-        ? `Deixaste de seguir ${artistName}`
-        : `Agora estás a seguir ${artistName}`
+        ? `Deixaste de seguir ${artist?.name}`
+        : `Agora estás a seguir ${artist?.name}`,
     )
   }
 
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(
-        window.location.href
+        window.location.href,
       )
 
       toast.success('Link do artista copiado')
     } catch {
-      toast.error('Não foi possível copiar o link')
+      toast.error(
+        'Não foi possível copiar o link',
+      )
     }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#101110] pb-32 text-white">
+        <div className="mx-auto max-w-[1500px] px-5 py-10 md:px-8">
+          <div className="animate-pulse">
+            <div className="h-5 w-24 rounded bg-white/10" />
+
+            <div className="mt-10 flex flex-col gap-7 md:flex-row md:items-end">
+              <div className="size-36 rounded-full bg-white/10 md:size-48" />
+
+              <div className="flex-1">
+                <div className="h-5 w-24 rounded bg-white/10" />
+                <div className="mt-4 h-14 max-w-md rounded bg-white/10" />
+                <div className="mt-5 h-4 max-w-2xl rounded bg-white/5" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (!artist) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#101110] px-5 text-white">
+        <div className="text-center">
+          <h1 className="text-xl font-semibold">
+            Artista não encontrado
+          </h1>
+
+          <p className="mt-2 text-sm text-white/40">
+            O artista que procuras não existe ou foi removido.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="mt-6 rounded-full bg-[#d8ff3e] px-5 py-2.5 text-sm font-semibold text-[#101110]"
+          >
+            Voltar
+          </button>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -144,11 +225,11 @@ export default function ArtistPage() {
 
       {/* Artist Hero */}
       <section className="relative overflow-hidden border-b border-white/5">
-        {/* Background */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-b from-[#242824] via-[#171917] to-[#101110]" />
 
           <div className="absolute -right-20 -top-40 size-[500px] rounded-full bg-[#d8ff3e]/5 blur-[120px]" />
+
           <div className="absolute -left-40 bottom-0 size-[400px] rounded-full bg-white/5 blur-[120px]" />
         </div>
 
@@ -156,16 +237,16 @@ export default function ArtistPage() {
           <div className="flex flex-col gap-7 md:flex-row md:items-end">
             {/* Avatar */}
             <div className="relative size-36 shrink-0 overflow-hidden rounded-full border-4 border-white/10 bg-[#1b1d1b] shadow-2xl md:size-48">
-              {artistTracks[0]?.cover ? (
+              {artist.image ? (
                 <img
-                  src={artistTracks[0].cover}
-                  alt={`Foto de ${artistName}`}
+                  src={artist.image}
+                  alt={`Foto de ${artist.name}`}
                   className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
                   <span className="text-5xl font-semibold text-white/20">
-                    {artistName.charAt(0)}
+                    {artist.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
               )}
@@ -173,27 +254,28 @@ export default function ArtistPage() {
 
             {/* Information */}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="flex size-5 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110]">
-                  <Check className="size-3 stroke-[3]" />
-                </span>
+              {artist.verified && (
+                <div className="flex items-center gap-2">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110]">
+                    <Check className="size-3 stroke-[3]" />
+                  </span>
 
-                <span className="text-xs font-medium text-[#d8ff3e]">
-                  Artista
-                </span>
-              </div>
+                  <span className="text-xs font-medium text-[#d8ff3e]">
+                    Artista verificado
+                  </span>
+                </div>
+              )}
 
               <h2 className="mt-3 truncate text-4xl font-semibold tracking-tight md:text-6xl">
-                {artistName}
+                {artist.name}
               </h2>
 
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-white/45">
-                Descobre as músicas publicadas por {artistName},
-                acompanha os lançamentos e adiciona as tuas
-                favoritas às playlists.
-              </p>
+              {artist.bio && (
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-white/45">
+                  {artist.bio}
+                </p>
+              )}
 
-              {/* Stats */}
               <div className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-3 text-xs text-white/40">
                 <span>
                   <strong className="text-white/80">
@@ -213,7 +295,7 @@ export default function ArtistPage() {
 
                 <span>
                   <strong className="text-white/80">
-                    0
+                    {formatNumber(artist.followers ?? 0)}
                   </strong>{' '}
                   seguidores
                 </span>
@@ -275,7 +357,9 @@ export default function ArtistPage() {
             <button
               type="button"
               onClick={() =>
-                toast.info('Mais opções do artista')
+                toast.info(
+                  `Opções de ${artist.name}`,
+                )
               }
               className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
               aria-label="Mais opções"
@@ -324,9 +408,13 @@ export default function ArtistPage() {
                       isPlaying={isPlaying}
                       liked={liked.includes(track.id)}
                       onPlay={() => play(track)}
-                      onLike={() => toggleLike(track.id)}
+                      onLike={() =>
+                        toggleLike(track.id)
+                      }
                       onOpen={() =>
-                        router.push(`/music/${track.id}`)
+                        router.push(
+                          `/music/${track.id}`,
+                        )
                       }
                     />
                   ))}
@@ -359,9 +447,13 @@ export default function ArtistPage() {
                       isPlaying={isPlaying}
                       liked={liked.includes(track.id)}
                       onPlay={() => play(track)}
-                      onLike={() => toggleLike(track.id)}
+                      onLike={() =>
+                        toggleLike(track.id)
+                      }
                       onOpen={() =>
-                        router.push(`/music/${track.id}`)
+                        router.push(
+                          `/music/${track.id}`,
+                        )
                       }
                     />
                   ))}
@@ -387,29 +479,37 @@ export default function ArtistPage() {
                 <div className="rounded-xl border border-white/8 bg-white/[0.025] p-5">
                   <div className="flex items-center gap-4">
                     <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/5">
-                      {artistTracks[0]?.cover ? (
+                      {artist.image ? (
                         <img
-                          src={artistTracks[0].cover}
+                          src={artist.image}
                           alt=""
                           className="h-full w-full object-cover"
                         />
                       ) : (
                         <span className="text-lg font-semibold text-white/30">
-                          {artistName.charAt(0)}
+                          {artist.name
+                            .charAt(0)
+                            .toUpperCase()}
                         </span>
                       )}
                     </div>
 
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">
-                        {artistName}
+                        {artist.name}
                       </p>
 
                       <p className="mt-1 text-xs text-white/35">
-                        Artista na plataforma
+                        @{artist.handle}
                       </p>
                     </div>
                   </div>
+
+                  {artist.bio && (
+                    <p className="mt-5 text-xs leading-5 text-white/40">
+                      {artist.bio}
+                    </p>
+                  )}
 
                   <div className="mt-6 grid grid-cols-2 gap-3">
                     <StatCard
@@ -421,41 +521,55 @@ export default function ArtistPage() {
                       label="Reproduções"
                       value={formatNumber(totalPlays)}
                     />
+
+                    <StatCard
+                      label="Seguidores"
+                      value={formatNumber(
+                        artist.followers ?? 0,
+                      )}
+                    />
+
+                    <StatCard
+                      label="Gênero"
+                      value={
+                        artist.genre || '—'
+                      }
+                    />
                   </div>
                 </div>
               </section>
 
               {/* Recently published */}
-              <section className="mt-10">
-                <div className="mb-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/30">
-                      Recentes
-                    </p>
+              {recentTracks.length > 0 && (
+                <section className="mt-10">
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-white/30">
+                        Recentes
+                      </p>
 
-                    <h3 className="mt-1 text-lg font-semibold">
-                      Publicadas recentemente
-                    </h3>
+                      <h3 className="mt-1 text-lg font-semibold">
+                        Publicadas recentemente
+                      </h3>
+                    </div>
+
+                    <Clock3 className="size-4 text-white/25" />
                   </div>
 
-                  <Clock3 className="size-4 text-white/25" />
-                </div>
-
-                <div className="space-y-1">
-                  {[...artistTracks]
-                    .slice(-4)
-                    .reverse()
-                    .map((track) => (
+                  <div className="space-y-1">
+                    {recentTracks.map((track) => (
                       <button
                         key={track.id}
                         type="button"
                         onClick={() =>
-                          router.push(`/music/${track.id}`)
+                          router.push(
+                            `/music/${track.id}`,
+                          )
                         }
                         className="group flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-white/5"
                       >
                         <img
-                          src={track.cover}
+                          src={track.coverUrl}
                           alt=""
                           className="size-11 shrink-0 rounded-lg object-cover"
                         />
@@ -466,15 +580,17 @@ export default function ArtistPage() {
                           </p>
 
                           <p className="mt-0.5 truncate text-xs text-white/35">
-                            {track.genre}
+                            {track.genre?.name ??
+                              'Sem gênero'}
                           </p>
                         </div>
 
                         <Play className="size-4 text-white/20 transition group-hover:text-white" />
                       </button>
                     ))}
-                </div>
-              </section>
+                  </div>
+                </section>
+              )}
             </div>
           </aside>
         </div>
@@ -482,10 +598,6 @@ export default function ArtistPage() {
     </main>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Track Row                                                                  */
-/* -------------------------------------------------------------------------- */
 
 function ArtistTrackRow({
   track,
@@ -497,7 +609,7 @@ function ArtistTrackRow({
   onLike,
   onOpen,
 }: {
-  track: (typeof tracks)[number]
+  track: Track
   index: number
   isCurrent: boolean
   isPlaying: boolean
@@ -535,7 +647,7 @@ function ArtistTrackRow({
         className="size-11 shrink-0 overflow-hidden rounded-lg"
       >
         <img
-          src={track.cover}
+          src={track.coverUrl}
           alt={`Capa de ${track.title}`}
           className="h-full w-full object-cover transition group-hover:scale-105"
         />
@@ -558,7 +670,7 @@ function ArtistTrackRow({
         </p>
 
         <p className="mt-0.5 truncate text-xs text-white/35">
-          {track.genre}
+          {track.genre?.name ?? 'Sem gênero'}
         </p>
       </button>
 
@@ -569,7 +681,7 @@ function ArtistTrackRow({
 
       {/* Duration */}
       <span className="hidden text-xs text-white/25 sm:block">
-        {formatDuration(track.duration)}
+        {formatDuration(track.durationSec)}
       </span>
 
       {/* Like */}
@@ -609,10 +721,6 @@ function ArtistTrackRow({
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Empty State                                                                */
-/* -------------------------------------------------------------------------- */
-
 function EmptyArtistState() {
   return (
     <div className="rounded-xl border border-white/8 bg-white/[0.025] px-6 py-16 text-center">
@@ -625,16 +733,12 @@ function EmptyArtistState() {
       </h4>
 
       <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-white/35">
-        Este artista ainda não publicou nenhuma música
-        na plataforma.
+        Este artista ainda não publicou nenhuma
+        música na plataforma.
       </p>
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Stat Card                                                                  */
-/* -------------------------------------------------------------------------- */
 
 function StatCard({
   label,
@@ -649,16 +753,12 @@ function StatCard({
         {label}
       </p>
 
-      <p className="mt-1 text-lg font-semibold">
+      <p className="mt-1 truncate text-lg font-semibold">
         {value}
       </p>
     </div>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('pt-BR', {

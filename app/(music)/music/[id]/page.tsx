@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
   Download,
@@ -16,7 +16,7 @@ import {
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { tracks } from '@/types/music'
+import { tracksService, type Track } from '@/services/tracks.service'
 import { usePlayerStore } from '@/stores/player-store'
 
 export default function MusicPage() {
@@ -31,10 +31,79 @@ export default function MusicPage() {
     toggleLike,
   } = usePlayerStore()
 
-  const track = useMemo(
-    () => tracks.find((item) => item.id === params.id) ?? tracks[0],
-    [params.id]
-  )
+  const [track, setTrack] = useState<Track | null>(null)
+  const [relatedTracks, setRelatedTracks] = useState<Track[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const trackId = Array.isArray(params.id)
+    ? params.id[0]
+    : params.id
+
+  useEffect(() => {
+    if (!trackId) return
+
+    const loadTrack = async () => {
+      try {
+        setLoading(true)
+
+        const response = await tracksService.getById(trackId)
+
+        setTrack(response.data)
+
+        // Busca músicas reais da API para a seção "Mais músicas"
+        const relatedResponse = await tracksService.list(1, 6)
+
+        const related = relatedResponse.data.data
+          .filter((item) => item.id !== trackId)
+          .slice(0, 5)
+
+        setRelatedTracks(related)
+      } catch (error) {
+        console.error(
+          'Erro ao carregar música:',
+          error,
+        )
+
+        toast.error(
+          'Não foi possível carregar a música.',
+        )
+
+        setTrack(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTrack()
+  }, [trackId])
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#101110] text-white">
+        <p className="text-sm text-white/40">
+          Carregando música...
+        </p>
+      </main>
+    )
+  }
+
+  if (!track) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-[#101110] text-white">
+        <p className="text-lg font-medium">
+          Música não encontrada
+        </p>
+
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="mt-4 rounded-full border border-white/10 px-4 py-2 text-sm text-white/60 transition hover:bg-white/5 hover:text-white"
+        >
+          Voltar
+        </button>
+      </main>
+    )
+  }
 
   const isLiked = liked.includes(track.id)
   const isCurrentTrack = currentTrack?.id === track.id
@@ -44,24 +113,54 @@ export default function MusicPage() {
       usePlayerStore.setState({
         isPlaying: false,
       })
+
       return
     }
 
     play(track)
   }
 
-  const handleLike = () => {
-    toggleLike(track.id)
+  const handleLike = async () => {
+    try {
+      await toggleLike(track.id)
 
-    toast.success(
-      isLiked
-        ? 'Removida das músicas curtidas'
-        : 'Adicionada às músicas curtidas'
-    )
+      toast.success(
+        isLiked
+          ? 'Removida das músicas curtidas'
+          : 'Adicionada às músicas curtidas',
+      )
+    } catch (error) {
+      console.error(
+        'Erro ao alterar curtida:',
+        error,
+      )
+
+      toast.error(
+        'Não foi possível alterar a curtida.',
+      )
+    }
   }
 
   const handleDownload = () => {
-    toast.info('Download iniciado')
+    if (!track.audioUrl) {
+      toast.error(
+        'Esta música não possui arquivo disponível para download.',
+      )
+
+      return
+    }
+
+    const link = document.createElement('a')
+
+    link.href = track.audioUrl
+    link.download = `${track.title}.mp3`
+    link.target = '_blank'
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+
+    toast.success('Download iniciado')
   }
 
   const handlePlaylist = () => {
@@ -70,20 +169,22 @@ export default function MusicPage() {
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href)
+      await navigator.clipboard.writeText(
+        window.location.href,
+      )
+
       toast.success('Link copiado')
     } catch {
-      toast.error('Não foi possível copiar o link')
+      toast.error(
+        'Não foi possível copiar o link',
+      )
     }
   }
-
-  const relatedTracks = tracks
-    .filter((item) => item.id !== track.id)
-    .slice(0, 5)
 
   return (
     <main className="min-h-screen bg-[#101110] pb-32 text-white">
       {/* Header */}
+
       <header className="border-b border-white/5">
         <div className="mx-auto flex max-w-[1500px] items-center gap-4 px-5 py-5 md:px-8">
           <button
@@ -107,12 +208,15 @@ export default function MusicPage() {
       </header>
 
       {/* Hero */}
+
       <section className="border-b border-white/5">
         <div className="mx-auto grid max-w-[1500px] gap-8 px-5 py-8 md:grid-cols-[320px_1fr] md:px-8 md:py-12 lg:grid-cols-[380px_1fr]">
+
           {/* Cover */}
+
           <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-2xl">
             <img
-              src={track.cover}
+              src={track.coverUrl}
               alt={`Capa de ${track.title}`}
               className="h-full w-full object-cover"
             />
@@ -121,10 +225,11 @@ export default function MusicPage() {
           </div>
 
           {/* Information */}
+
           <div className="flex flex-col justify-end">
             <div className="mb-5">
               <span className="inline-flex rounded-full border border-[#d8ff3e]/20 bg-[#d8ff3e]/10 px-3 py-1 text-xs font-medium text-[#d8ff3e]">
-                {track.genre}
+                {track.genre?.name ?? 'Sem gênero'}
               </span>
             </div>
 
@@ -136,14 +241,22 @@ export default function MusicPage() {
               type="button"
               className="mt-4 flex w-fit items-center gap-2 text-white/55 transition hover:text-white"
             >
-              <div className="flex size-8 items-center justify-center rounded-full bg-white/10">
-                <span className="text-xs font-semibold">
-                  {track.artist.charAt(0)}
-                </span>
+              <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                {track.artist?.image ? (
+                  <img
+                    src={track.artist.image}
+                    alt={track.artist.name}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-semibold">
+                    {track.artist?.name?.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
 
               <span className="text-sm font-medium">
-                {track.artist}
+                {track.artist?.name ?? 'Artista desconhecido'}
               </span>
 
               <UserPlus className="ml-1 size-4" />
@@ -155,8 +268,11 @@ export default function MusicPage() {
             </p>
 
             {/* Actions */}
+
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              {/* Play / Pause */}
+
+              {/* Play */}
+
               <button
                 type="button"
                 onClick={handlePlay}
@@ -174,6 +290,7 @@ export default function MusicPage() {
               </button>
 
               {/* Like */}
+
               <button
                 type="button"
                 onClick={handleLike}
@@ -197,6 +314,7 @@ export default function MusicPage() {
               </button>
 
               {/* Playlist */}
+
               <button
                 type="button"
                 onClick={handlePlaylist}
@@ -210,6 +328,7 @@ export default function MusicPage() {
               </button>
 
               {/* Download */}
+
               <button
                 type="button"
                 onClick={handleDownload}
@@ -220,6 +339,7 @@ export default function MusicPage() {
               </button>
 
               {/* Share */}
+
               <button
                 type="button"
                 onClick={handleShare}
@@ -230,9 +350,12 @@ export default function MusicPage() {
               </button>
 
               {/* More */}
+
               <button
                 type="button"
-                onClick={() => toast.info('Opções da música')}
+                onClick={() =>
+                  toast.info('Opções da música')
+                }
                 className="flex size-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
                 aria-label="Mais opções"
               >
@@ -241,6 +364,7 @@ export default function MusicPage() {
             </div>
 
             {/* Stats */}
+
             <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-xs text-white/35">
               <div>
                 <span className="font-medium text-white/70">
@@ -251,7 +375,7 @@ export default function MusicPage() {
 
               <div>
                 <span className="font-medium text-white/70">
-                  {track.genre}
+                  {track.genre?.name ?? '—'}
                 </span>{' '}
                 gênero
               </div>
@@ -268,21 +392,21 @@ export default function MusicPage() {
       </section>
 
       {/* Content */}
-      <div className="mx-auto grid max-w-[1500px] gap-12 px-5 py-10 md:px-8 lg:grid-cols-[1fr_380px]">
-        {/* Left */}
-        <div>
-          {/* Information */}
-          <section>
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-white/30">
-                  Informações
-                </p>
 
-                <h3 className="mt-1 text-lg font-semibold">
-                  Sobre esta música
-                </h3>
-              </div>
+      <div className="mx-auto grid max-w-[1500px] gap-12 px-5 py-10 md:px-8 lg:grid-cols-[1fr_380px]">
+
+        {/* Left */}
+
+        <div>
+          <section>
+            <div className="mb-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/30">
+                Informações
+              </p>
+
+              <h3 className="mt-1 text-lg font-semibold">
+                Sobre esta música
+              </h3>
             </div>
 
             <div className="rounded-xl border border-white/8 bg-white/[0.025] p-5">
@@ -294,53 +418,33 @@ export default function MusicPage() {
 
                 <InfoItem
                   label="Artista"
-                  value={track.artist}
+                  value={
+                    track.artist?.name ??
+                    'Artista desconhecido'
+                  }
                 />
 
                 <InfoItem
                   label="Gênero"
-                  value={track.genre}
+                  value={
+                    track.genre?.name ??
+                    'Sem gênero'
+                  }
                 />
 
                 <InfoItem
                   label="Duração"
-                  value={formatDuration(track.duration)}
+                  value={formatDuration(
+                    track.durationSec,
+                  )}
                 />
-              </div>
-            </div>
-          </section>
-
-          {/* Comments */}
-          <section className="mt-12">
-            <div className="mb-5">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/30">
-                Comunidade
-              </p>
-
-              <h3 className="mt-1 text-lg font-semibold">
-                Comentários
-              </h3>
-            </div>
-
-            <div className="rounded-xl border border-white/8 bg-white/[0.025] p-6">
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex size-12 items-center justify-center rounded-full bg-white/5">
-                  <Heart className="size-5 text-white/25" />
-                </div>
-
-                <h4 className="mt-4 text-sm font-medium">
-                  Ainda não há comentários
-                </h4>
-
-                <p className="mt-1 max-w-sm text-xs leading-5 text-white/35">
-                  Seja o primeiro a comentar nesta música.
-                </p>
               </div>
             </div>
           </section>
         </div>
 
         {/* Right */}
+
         <aside>
           <div className="sticky top-6">
             <div className="mb-5 flex items-center justify-between">
@@ -367,20 +471,22 @@ export default function MusicPage() {
                     key={item.id}
                     type="button"
                     onClick={() =>
-                      router.push(`/music/${item.id}`)
+                      router.push(
+                        `/music/${item.id}`,
+                      )
                     }
                     className="group flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-white/5"
                   >
-                    {/* Cover */}
                     <div className="relative size-12 shrink-0 overflow-hidden rounded-lg">
                       <img
-                        src={item.cover}
+                        src={item.coverUrl}
                         alt={`Capa de ${item.title}`}
                         className="h-full w-full object-cover"
                       />
 
                       <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/40">
-                        {isRelatedCurrent && isPlaying ? (
+                        {isRelatedCurrent &&
+                        isPlaying ? (
                           <Pause className="size-4 fill-white text-white opacity-100" />
                         ) : (
                           <Play className="size-4 scale-75 fill-white text-white opacity-0 transition group-hover:scale-100 group-hover:opacity-100" />
@@ -388,7 +494,6 @@ export default function MusicPage() {
                       </div>
                     </div>
 
-                    {/* Info */}
                     <div className="min-w-0 flex-1">
                       <p
                         className={`truncate text-sm font-medium ${
@@ -401,13 +506,15 @@ export default function MusicPage() {
                       </p>
 
                       <p className="mt-0.5 truncate text-xs text-white/35">
-                        {item.artist}
+                        {item.artist?.name ??
+                          'Artista desconhecido'}
                       </p>
                     </div>
 
-                    {/* Duration */}
                     <span className="text-xs text-white/25">
-                      {formatDuration(item.duration)}
+                      {formatDuration(
+                        item.durationSec,
+                      )}
                     </span>
                   </button>
                 )

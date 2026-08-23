@@ -13,7 +13,8 @@ export interface AuthUser {
   email: string
   username: string
   role: string
-  avatarUrl?: string
+  avatarUrl?: string | null
+  bio?: string | null
 }
 
 interface AuthContextData {
@@ -21,11 +22,17 @@ interface AuthContextData {
   accessToken: string | null
   isAuthenticated: boolean
   isLoading: boolean
+
   setAuth: (
     accessToken: string,
     user: AuthUser,
   ) => void
+
   logout: () => void
+
+  updateUser: (
+    updatedUser: any,
+  ) => void
 }
 
 const AuthContext = createContext<
@@ -54,9 +61,6 @@ export function AuthProvider({
       const storedUser =
         localStorage.getItem('user')
 
-      /*
-       * Não existe autenticação salva.
-       */
       if (
         !storedToken ||
         storedToken === 'undefined' ||
@@ -74,15 +78,9 @@ export function AuthProvider({
         return
       }
 
-      /*
-       * Recupera o usuário.
-       */
       const parsedUser: AuthUser =
         JSON.parse(storedUser)
 
-      /*
-       * Validação mínima dos dados.
-       */
       if (
         !parsedUser ||
         !parsedUser.id ||
@@ -123,9 +121,6 @@ export function AuthProvider({
       return
     }
 
-    /*
-     * Salva no localStorage.
-     */
     localStorage.setItem(
       'accessToken',
       token,
@@ -136,9 +131,6 @@ export function AuthProvider({
       JSON.stringify(userData),
     )
 
-    /*
-     * Atualiza o estado imediatamente.
-     */
     setAccessToken(token)
     setUser(userData)
   }
@@ -151,6 +143,32 @@ export function AuthProvider({
     setUser(null)
   }
 
+  /**
+   * Atualiza apenas os campos alterados
+   * e mantém os restantes dados do usuário.
+   */
+  function updateUser(
+    updatedUser: Partial<AuthUser>,
+  ) {
+    setUser((currentUser) => {
+      if (!currentUser) {
+        return currentUser
+      }
+
+      const newUser: AuthUser = {
+        ...currentUser,
+        ...updatedUser,
+      }
+
+      localStorage.setItem(
+        'user',
+        JSON.stringify(newUser),
+      )
+
+      return newUser
+    })
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -161,6 +179,7 @@ export function AuthProvider({
         isLoading,
         setAuth,
         logout,
+        updateUser,
       }}
     >
       {children}

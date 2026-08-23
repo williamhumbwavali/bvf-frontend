@@ -28,6 +28,7 @@ import MusicPlayer from './music-player'
 import MusicSidebar from './music-sidebar'
 import MusicHeader from './music-header'
 import TrackRow from './track-row'
+import { useRouter } from 'next/navigation'
 
 function Cover({
   src,
@@ -151,11 +152,21 @@ function FeaturedTrack({
           </p>
 
           <h2 className="text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
-            {track.title}
+            <Link
+              href={`/music/${track.id}`}
+              className='transition-colors hover:text-[#d8ff3e] hover:underline'
+            >
+              {track.title}
+            </Link>
           </h2>
 
           <p className="mt-2 text-sm text-white/60">
-            {track.artist?.name || 'Artista desconhecido'}
+            <Link
+              href={`/artist/${track.artist?.handle}`}
+              className='transition-colors hover:text-[#d8ff3e] hover:underline'
+            >
+              {track.artist?.name}
+            </Link>
 
             {track.genre && (
               <>
@@ -201,7 +212,7 @@ function FeaturedTrack({
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(
-                    window.location.href,
+                    `${window.location.href}music/${track.id}`,
                   )
 
                   toast.success('Link copiado')
@@ -324,6 +335,8 @@ function ForYouSection({
   setTab: (value: string) => void
   onPlay: (track: Track) => void
 }) {
+  const router = useRouter()
+
   const {
     liked,
     toggleLike,
@@ -352,20 +365,18 @@ function ForYouSection({
           </h2>
 
           <div className="flex gap-1 rounded-lg bg-white/5 p-1">
-            {['Em alta', 'Novidades'].map(
-              (item) => (
-                <button
-                  key={item}
-                  onClick={() => setTab(item)}
-                  className={`rounded-md px-3 py-1.5 text-xs transition-colors ${tab === item
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/40 hover:text-white'
-                    }`}
-                >
-                  {item}
-                </button>
-              ),
-            )}
+            {['Em alta', 'Novidades'].map((item) => (
+              <button
+                key={item}
+                onClick={() => setTab(item)}
+                className={`rounded-md px-3 py-1.5 text-xs transition-colors ${tab === item
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/40 hover:text-white'
+                  }`}
+              >
+                {item}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -382,66 +393,89 @@ function ForYouSection({
         </div>
       ) : (
         <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
-          {displayedTracks
-            .slice(0, 8)
-            .map((track) => {
-              const isLiked = liked.includes(
-                track.id,
-              )
+          {displayedTracks.slice(0, 8).map((track) => {
+            const isLiked = liked.includes(track.id)
 
-              return (
-                <article
-                  key={track.id}
-                  className="group"
+            return (
+              <article
+                key={track.id}
+                className="group"
+              >
+                {/* Capa / Play */}
+                <button
+                  type="button"
+                  onClick={() => onPlay(track)}
+                  className="relative mb-3 aspect-square w-full overflow-hidden rounded-xl bg-white/5"
                 >
-                  <button
-                    onClick={() => onPlay(track)}
-                    className="relative mb-3 aspect-square w-full overflow-hidden rounded-xl bg-white/5"
-                  >
-                    <Cover
-                      src={track.coverUrl}
-                      alt={`Capa de ${track.title}`}
-                      className="size-full transition-transform duration-500 group-hover:scale-105"
-                    />
+                  <Cover
+                    src={track.coverUrl}
+                    alt={`Capa de ${track.title}`}
+                    className="size-full transition-transform duration-500 group-hover:scale-105"
+                  />
 
-                    <span className="absolute bottom-3 right-3 flex size-10 translate-y-2 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110] opacity-0 shadow-xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
-                      <Play className="ml-0.5 size-4 fill-current" />
-                    </span>
-                  </button>
+                  <span className="absolute bottom-3 right-3 flex size-10 translate-y-2 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110] opacity-0 shadow-xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
+                    <Play className="ml-0.5 size-4 fill-current" />
+                  </span>
+                </button>
 
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="truncate text-sm font-medium">
+                {/* Informações */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    {/* Título abre a página da música */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(`/music/${track.id}`)
+                      }
+                      className="block max-w-full text-left"
+                    >
+                      <h3 className="truncate text-sm font-medium transition-colors hover:text-[#d8ff3e] hover:underline">
                         {track.title}
                       </h3>
+                    </button>
 
-                      <p className="mt-1 truncate text-xs text-white/40">
-                        {track.artist?.name ||
-                          'Artista desconhecido'}
-                      </p>
-                    </div>
-
+                    {/* Artista */}
                     <button
-                      aria-label={`Curtir ${track.title}`}
+                      type="button"
                       onClick={() =>
-                        toggleLike(track.id)
+                        router.push(`/artist/${track.artist?.handle}`)
                       }
-                      className={`pt-0.5 ${isLiked
-                        ? 'text-[#d8ff3e]'
-                        : 'text-white/25 hover:text-white'
-                        }`}
+                      className="block max-w-full text-left"
                     >
-                      <Heart
-                        className={`size-4 ${isLiked
-                          ? 'fill-current'
-                          : ''
-                          }`}
-                      />
+                      <p className="tmt-1 truncate text-xs text-white/40 transition-colors hover:text-[#d8ff3e] hover:underline">
+                        {track.artist?.name}
+                      </p>
                     </button>
                   </div>
-                </article>
-              )
-            })}
+
+                  {/* Like */}
+                  <button
+                    type="button"
+                    aria-label={
+                      isLiked
+                        ? `Remover ${track.title} das curtidas`
+                        : `Curtir ${track.title}`
+                    }
+                    aria-pressed={isLiked}
+                    onClick={() =>
+                      toggleLike(track.id)
+                    }
+                    className={`shrink-0 pt-0.5 transition-colors ${isLiked
+                      ? 'text-[#d8ff3e]'
+                      : 'text-white/25 hover:text-white'
+                      }`}
+                  >
+                    <Heart
+                      className={`size-4 ${isLiked
+                        ? 'fill-current'
+                        : ''
+                        }`}
+                    />
+                  </button>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
     </section>
@@ -621,7 +655,6 @@ export default function MusicDashboard() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        setLoading(true)
 
         const [
           tracksResponse,
@@ -643,7 +676,6 @@ export default function MusicDashboard() {
           'Não foi possível carregar os dados.',
         )
       } finally {
-        setLoading(false)
       }
     }
 
@@ -709,9 +741,9 @@ export default function MusicDashboard() {
   |--------------------------------------------------------------------------
   */
 
-  if (loading) {
+  /*if (loading) {
     return <DashboardLoading />
-  }
+  }*/
 
   /*
   |--------------------------------------------------------------------------

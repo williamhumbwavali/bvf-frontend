@@ -24,11 +24,11 @@ export default function MusicHeader({
 
   const initials = user?.name
     ? user.name
-        .split(' ')
-        .map((name) => name[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
+      .split(' ')
+      .map((name) => name[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase()
     : 'U'
 
   return (
@@ -80,9 +80,17 @@ export default function MusicHeader({
         href="/profile"
         className="flex items-center gap-2"
       >
-        <div className="flex size-8 items-center justify-center rounded-full bg-[#d8ff3e] text-xs font-bold text-[#101110]">
-          {initials}
-        </div>
+        {user?.avatarUrl ? (
+          <img
+            src={user.avatarUrl}
+            alt={user.name}
+            className="size-8 shrink-0 rounded-full border-4 border-[#131513] object-cover md:size-8"
+          />
+        ) : (
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full border-4 border-[#131513] bg-[#d8ff3e] text-2xl font-bold text-[#101110] md:size-32 md:text-4xl">
+            {initials}
+          </div>
+        )}
 
         <div className="hidden flex-col sm:flex">
           <span className="max-w-[120px] truncate text-xs font-medium text-white">

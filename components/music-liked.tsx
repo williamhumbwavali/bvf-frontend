@@ -1,16 +1,23 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
 import {
   Heart,
   Play,
   Shuffle,
   Trash2,
 } from 'lucide-react'
+
 import { Toaster, toast } from 'sonner'
-import { tracks, type Track } from '@/types/music'
+
+import { usersService } from '@/services/users.service'
+import { tracksService } from '@/services/tracks.service'
+
+import type { Track } from '@/services/tracks.service'
+
 import { usePlayerStore } from '@/stores/player-store'
-import MusicPlayer from './music-player'
+
 import MusicSidebar from './music-sidebar'
 import MusicHeader from './music-header'
 import TrackRow from './track-row'
@@ -58,7 +65,9 @@ function LikedHeader({
             </button>
 
             <button
-              onClick={() => toast.success('Reprodução aleatória iniciada')}
+              onClick={() =>
+                toast.info('Reprodução aleatória iniciada')
+              }
               className="flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/55 transition-colors hover:border-white/20 hover:text-white"
               aria-label="Reprodução aleatória"
             >
@@ -71,8 +80,21 @@ function LikedHeader({
   )
 }
 
-function LikedStats({ likedTracks }: { likedTracks: Track[] }) {
-  const genres = new Set(likedTracks.map((track) => track.genre))
+function LikedStats({
+  likedTracks,
+}: {
+  likedTracks: Track[]
+}) {
+  const genres = new Set(
+    likedTracks
+      .map((track) => track.genre?.name)
+      .filter(Boolean),
+  )
+
+  const totalPlays = likedTracks.reduce(
+    (total, track) => total + Number(track.playCount ?? 0),
+    0,
+  )
 
   return (
     <section className="mb-10 grid gap-4 sm:grid-cols-3">
@@ -104,10 +126,7 @@ function LikedStats({ likedTracks }: { likedTracks: Track[] }) {
         </p>
 
         <p className="mt-1 text-2xl font-semibold">
-          {likedTracks.reduce(
-            (total, track) => total + Number(track.plays.replace(/\D/g, '')),
-            0,
-          ).toLocaleString('pt-PT')}
+          {totalPlays.toLocaleString('pt-PT')}
         </p>
 
         <p className="mt-1 text-xs text-white/35">
@@ -159,46 +178,112 @@ export default function MusicLiked() {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState('Músicas curtidas')
 
-  const {
-    liked,
-    toggleLike,
-    play,
-  } = usePlayerStore()
+  const [likedTrackIds, setLikedTrackIds] = useState<string[]>([])
+  const [likedTracks, setLikedTracks] = useState<Track[]>([])
 
-  const likedTracks = useMemo(() => {
-    return tracks.filter((track) => liked.includes(track.id))
-  }, [liked])
+  const [loading, setLoading] = useState(true)
+
+  const { play } = usePlayerStore()
+
+  useEffect(() => {
+    const loadLikedTracks = async () => {
+      try {
+        setLoading(true)
+
+        const response = await usersService.getLikedTracks()
+        const likes = response.data ?? []
+
+        const trackIds = likes.map((like) => like.trackId)
+
+        setLikedTrackIds(trackIds)
+
+        // O endpoint já retorna a música dentro de like.track
+        const tracks = likes
+          .map((like) => like.track)
+          .filter((track): track is Track => Boolean(track))
+
+        setLikedTracks(tracks)
+      } catch (error) {
+        console.error('Erro ao carregar músicas curtidas:', error)
+
+        toast.error(
+          'Não foi possível carregar suas músicas curtidas.',
+        )
+
+        setLikedTracks([])
+        setLikedTrackIds([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadLikedTracks()
+  }, [])
 
   const filteredTracks = useMemo(() => {
-    if (!query.trim()) {
+    const normalizedQuery = query.toLowerCase().trim()
+
+    if (!normalizedQuery) {
       return likedTracks
     }
 
-    return likedTracks.filter((track) =>
-      `${track.title} ${track.artist} ${track.genre}`
+    return likedTracks.filter((track) => {
+      const text = [
+        track.title,
+        track.artist?.name,
+        track.genre?.name,
+        track.album?.title,
+      ]
+        .filter(Boolean)
+        .join(' ')
         .toLowerCase()
-        .includes(query.toLowerCase()),
-    )
+
+      return text.includes(normalizedQuery)
+    })
   }, [likedTracks, query])
 
   const playTrack = (track: Track) => {
     play(track)
+
     toast.success(`Reproduzindo ${track.title}`)
   }
 
   const playAll = () => {
-    if (!likedTracks.length) return
+    if (!likedTracks.length) {
+      return
+    }
 
     play(likedTracks[0])
+
     toast.success('Sua coleção começou a tocar')
   }
 
-  const clearLiked = () => {
-    likedTracks.forEach((track) => {
-      toggleLike(track.id)
-    })
+  const clearLiked = async () => {
+    if (likedTrackIds.length === 0) {
+      return
+    }
 
-    toast.success('Músicas curtidas removidas')
+    try {
+      await Promise.all(
+        likedTrackIds.map((trackId) =>
+          tracksService.unlike(trackId),
+        ),
+      )
+
+      setLikedTrackIds([])
+      setLikedTracks([])
+
+      toast.success('Músicas curtidas removidas')
+    } catch (error) {
+      console.error(
+        'Erro ao remover músicas curtidas:',
+        error,
+      )
+
+      toast.error(
+        'Não foi possível remover todas as músicas curtidas.',
+      )
+    }
   }
 
   return (
@@ -251,7 +336,8 @@ export default function MusicLiked() {
               {likedTracks.length > 0 && (
                 <button
                   onClick={clearLiked}
-                  className="flex items-center gap-2 text-xs text-white/35 transition-colors hover:text-red-400"
+                  disabled={loading}
+                  className="flex items-center gap-2 text-xs text-white/35 transition-colors hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Trash2 className="size-3.5" />
                   Limpar
@@ -259,7 +345,13 @@ export default function MusicLiked() {
               )}
             </div>
 
-            {likedTracks.length === 0 ? (
+            {loading ? (
+              <div className="rounded-2xl border border-white/10 bg-[#131513] py-20 text-center">
+                <p className="text-sm text-white/40">
+                  Carregando suas músicas...
+                </p>
+              </div>
+            ) : likedTracks.length === 0 ? (
               <EmptyLiked />
             ) : filteredTracks.length > 0 ? (
               <div>

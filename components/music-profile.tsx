@@ -1,76 +1,119 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
   Edit3,
-  Heart,
-  MoreHorizontal,
-  Play,
-  Settings,
   Share2,
   UserPlus,
   Users,
+  Settings,
 } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
-import { tracks, type Track } from '@/types/music'
+import Link from 'next/link'
+
 import { usePlayerStore } from '@/stores/player-store'
-import MusicPlayer from './music-player'
+import {
+  useAuth,
+  type AuthUser,
+} from '@/contexts/auth-context'
+
+import {
+  ArtistsService,
+  type Artist,
+} from '@/services/artists.service'
+
+import type { Track } from '@/services/tracks.service'
+import { tracksService } from '@/services/tracks.service'
+
 import MusicSidebar from './music-sidebar'
 import MusicHeader from './music-header'
 import TrackRow from './track-row'
-import Link from 'next/link'
 
 interface MusicProfileProps {
   isOwner?: boolean
   username?: string
 }
 
-function Cover({
-  src,
-  alt,
-  className = '',
-}: {
-  src: string
-  alt: string
-  className?: string
-}) {
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className={`object-cover ${className}`}
-    />
-  )
-}
+/* =========================================================
+   PROFILE HERO
+========================================================= */
 
 function ProfileHero({
+  artist,
   isOwner,
-  username,
+  authUser,
 }: {
+  artist: Artist
   isOwner: boolean
-  username: string
+  authUser?: AuthUser | null
 }) {
+  /*
+   * Para o próprio perfil usamos o AuthContext.
+   *
+   * Isso é importante porque quando o usuário salva o perfil:
+   *
+   * updateUser(response.data.user)
+   *
+   * o AuthContext muda imediatamente e o Hero acompanha
+   * essa alteração sem precisar fazer outra requisição.
+   *
+   * Para perfil público continuamos usando artist.user.
+   */
+  const user = isOwner && authUser
+    ? authUser
+    : artist.user
+
+  const name = user?.name ?? artist.name ?? 'Usuário'
+  const username = user?.username ?? artist.handle ?? ''
+  const avatarUrl = user?.avatarUrl ?? null
+
+  const bio =
+    artist.bio ??
+    user?.bio ??
+    ''
+
+  const role = user?.role ?? 'ARTIST'
+
+  const initials = name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
   return (
     <section className="relative mb-10 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
+      {/* Banner */}
       <div className="h-32 bg-gradient-to-r from-[#242924] via-[#171a17] to-[#0f100f] md:h-44" />
 
       <div className="relative px-5 pb-6 md:px-8 md:pb-8">
         <div className="-mt-12 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between md:-mt-16">
+          {/* Identity */}
           <div className="flex items-end gap-4">
-            <div className="flex size-24 shrink-0 items-center justify-center rounded-full border-4 border-[#131513] bg-[#d8ff3e] text-2xl font-bold text-[#101110] md:size-32 md:text-4xl">
-              WH
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={name}
+                className="size-24 shrink-0 rounded-full border-4 border-[#131513] object-cover md:size-32"
+              />
+            ) : (
+              <div className="flex size-24 shrink-0 items-center justify-center rounded-full border-4 border-[#131513] bg-[#d8ff3e] text-2xl font-bold text-[#101110] md:size-32 md:text-4xl">
+                {initials}
+              </div>
+            )}
 
             <div className="pb-1">
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                  William
+                  {name}
                 </h1>
 
-                <span className="rounded-full bg-[#d8ff3e]/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-[#d8ff3e]">
-                  Criador
-                </span>
+                {role === 'ARTIST' && (
+                  <span className="rounded-full bg-[#d8ff3e]/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-[#d8ff3e]">
+                    Criador
+                  </span>
+                )}
               </div>
 
               <p className="mt-1 text-sm text-white/40">
@@ -79,6 +122,7 @@ function ProfileHero({
             </div>
           </div>
 
+          {/* Actions */}
           <div className="flex items-center gap-2">
             {isOwner ? (
               <>
@@ -91,7 +135,7 @@ function ProfileHero({
                 </Link>
 
                 <Link
-                  href='/profile/edit'
+                  href="/profile/edit"
                   className="flex items-center gap-2 rounded-lg bg-[#d8ff3e] px-4 py-2.5 text-xs font-bold text-[#101110]"
                 >
                   <Edit3 className="size-4" />
@@ -101,8 +145,11 @@ function ProfileHero({
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={() =>
-                    toast.success(`Você começou a seguir @${username}`)
+                    toast.success(
+                      `Você começou a seguir @${username}`,
+                    )
                   }
                   className="flex items-center gap-2 rounded-lg bg-[#d8ff3e] px-4 py-2.5 text-xs font-bold text-[#101110]"
                 >
@@ -111,7 +158,10 @@ function ProfileHero({
                 </button>
 
                 <button
-                  onClick={() => toast.success('Link do perfil copiado')}
+                  type="button"
+                  onClick={() =>
+                    toast.success('Link do perfil copiado')
+                  }
                   className="flex size-10 items-center justify-center rounded-lg border border-white/10 text-white/50 hover:text-white"
                   aria-label="Compartilhar perfil"
                 >
@@ -122,24 +172,38 @@ function ProfileHero({
           </div>
         </div>
 
-        <div className="mt-6 max-w-2xl">
-          <p className="text-sm leading-6 text-white/55">
-            Sons para quem prefere a madrugada. Explorando música,
-            produzindo e descobrindo novos artistas.
-          </p>
-        </div>
+        {/* Bio */}
+        {bio && (
+          <div className="mt-6 max-w-2xl">
+            <p className="text-sm leading-6 text-white/55">
+              {bio}
+            </p>
+          </div>
+        )}
 
+        {/* Metadata */}
         <div className="mt-6 flex flex-wrap items-center gap-5 text-xs text-white/40">
           <span className="flex items-center gap-1.5">
             <Users className="size-3.5" />
-            0 seguidores
+
+            {Number(
+              artist.followers ?? 0,
+            ).toLocaleString('pt-PT')}{' '}
+            seguidores
           </span>
 
-          <span>0 seguindo</span>
+          <span>Seguindo</span>
 
           <span className="flex items-center gap-1.5">
             <CalendarDays className="size-3.5" />
-            Entrou em 2026
+
+            Membro desde{' '}
+
+            {artist.user?.createdAt
+              ? new Date(
+                  artist.user.createdAt,
+                ).getFullYear()
+              : '2026'}
           </span>
         </div>
       </div>
@@ -147,7 +211,23 @@ function ProfileHero({
   )
 }
 
-function ProfileStats() {
+/* =========================================================
+   PROFILE STATS
+========================================================= */
+
+function ProfileStats({
+  tracks,
+  followers,
+}: {
+  tracks: Track[]
+  followers: number
+}) {
+  const totalPlays = tracks.reduce(
+    (total, track) =>
+      total + Number(track.playCount ?? 0),
+    0,
+  )
+
   return (
     <div className="mb-10 grid gap-4 sm:grid-cols-3">
       <div className="rounded-2xl border border-white/10 bg-[#131513] p-5">
@@ -156,7 +236,7 @@ function ProfileStats() {
         </p>
 
         <p className="mt-2 text-2xl font-semibold">
-          6
+          {tracks.length}
         </p>
 
         <p className="mt-1 text-xs text-white/35">
@@ -170,7 +250,7 @@ function ProfileStats() {
         </p>
 
         <p className="mt-2 text-2xl font-semibold">
-          12
+          {totalPlays.toLocaleString('pt-PT')}
         </p>
 
         <p className="mt-1 text-xs text-white/35">
@@ -184,7 +264,9 @@ function ProfileStats() {
         </p>
 
         <p className="mt-2 text-2xl font-semibold">
-          0
+          {Number(
+            followers ?? 0,
+          ).toLocaleString('pt-PT')}
         </p>
 
         <p className="mt-1 text-xs text-white/35">
@@ -195,15 +277,19 @@ function ProfileStats() {
   )
 }
 
+/* =========================================================
+   PROFILE TRACKS
+========================================================= */
+
 function ProfileTracks({
+  tracks,
   isOwner,
   onPlay,
 }: {
+  tracks: Track[]
   isOwner: boolean
   onPlay: (track: Track) => void
 }) {
-  const profileTracks = tracks.slice(0, 6)
-
   return (
     <section>
       <div className="mb-5 flex items-center justify-between">
@@ -213,196 +299,319 @@ function ProfileTracks({
           </p>
 
           <h2 className="mt-1 text-xl font-semibold tracking-tight">
-            {isOwner ? 'Suas músicas' : 'Músicas publicadas'}
+            {isOwner
+              ? 'Suas músicas'
+              : 'Músicas publicadas'}
           </h2>
         </div>
-
-        <button
-          onClick={() => toast.info('Lista completa aberta')}
-          className="text-xs text-white/40 hover:text-[#d8ff3e]"
-        >
-          Ver tudo →
-        </button>
       </div>
 
-      <div>
-        {profileTracks.map((track, index) => (
-          <TrackRow
-            key={track.id}
-            track={track}
-            index={index}
-            onPlay={onPlay}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
+      {tracks.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-[#131513] py-20 text-center">
+          <p className="text-lg font-medium">
+            Nenhuma música publicada
+          </p>
 
-function ProfilePlaylists() {
-  const playlists = [
-    {
-      id: 'p1',
-      title: 'Madrugada',
-      description: 'sons para ouvir depois das 00:00',
-      cover: tracks[0]?.cover,
-      count: 1,
-    },
-    {
-      id: 'p2',
-      title: 'Sad Hours',
-      description: 'quando a noite pesa um pouco mais',
-      cover: tracks[1]?.cover,
-      count: 2,
-    },
-    {
-      id: 'p3',
-      title: 'Underground',
-      description: 'descobertas fora do mainstream',
-      cover: tracks[2]?.cover,
-      count: 2,
-    },
-  ]
-
-  return (
-    <section className="mt-12">
-      <div className="mb-5 flex items-center justify-between">
+          <p className="mt-2 text-sm text-white/40">
+            Quando você publicar músicas, elas
+            aparecerão aqui.
+          </p>
+        </div>
+      ) : (
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
-            Coleções
-          </p>
-
-          <h2 className="mt-1 text-xl font-semibold tracking-tight">
-            Playlists públicas
-          </h2>
+          {tracks.map((track, index) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              index={index}
+              onPlay={onPlay}
+            />
+          ))}
         </div>
-
-        <button
-          onClick={() => toast.info('Playlists abertas')}
-          className="text-xs text-white/40 hover:text-[#d8ff3e]"
-        >
-          Ver tudo →
-        </button>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        {playlists.map((playlist) => (
-          <button
-            key={playlist.id}
-            onClick={() =>
-              toast.success(`${playlist.title} adicionada à fila`)
-            }
-            className="group text-left"
-          >
-            <div className="mb-3 aspect-square overflow-hidden rounded-xl bg-white/5">
-              <Cover
-                src={playlist.cover}
-                alt={playlist.title}
-                className="size-full transition-transform duration-500 group-hover:scale-105"
-              />
-            </div>
-
-            <p className="text-sm font-medium">
-              {playlist.title}
-            </p>
-
-            <p className="mt-1 text-xs text-white/40">
-              {playlist.count} músicas
-              <span className="px-1">·</span>
-              {playlist.description}
-            </p>
-          </button>
-        ))}
-      </div>
+      )}
     </section>
   )
 }
 
-function PrivateActivity() {
+/* =========================================================
+   PROFILE SKELETON
+========================================================= */
+
+function ProfileSkeleton() {
   return (
-    <section className="mt-12">
-      <div className="mb-5">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
-          Somente você
-        </p>
+    <div className="animate-pulse">
+      {/* Hero */}
+      <section className="mb-10 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
+        <div className="h-32 bg-white/5 md:h-44" />
 
-        <h2 className="mt-1 text-xl font-semibold tracking-tight">
-          Sua atividade
-        </h2>
-      </div>
+        <div className="px-5 pb-8 md:px-8">
+          <div className="-mt-12 flex items-end gap-4 md:-mt-16">
+            <div className="size-24 rounded-full border-4 border-[#131513] bg-white/10 md:size-32" />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-[#131513] p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">
-                Músicas curtidas
-              </p>
+            <div className="pb-2">
+              <div className="h-7 w-40 rounded bg-white/10" />
 
-              <p className="mt-1 text-xs text-white/40">
-                Sua coleção pessoal
-              </p>
+              <div className="mt-2 h-4 w-24 rounded bg-white/5" />
             </div>
-
-            <Heart className="size-5 text-[#d8ff3e]" />
           </div>
 
-          <p className="mt-6 text-3xl font-semibold">
-            48
-          </p>
+          <div className="mt-6 h-4 w-full max-w-xl rounded bg-white/5" />
+
+          <div className="mt-3 h-4 w-2/3 max-w-md rounded bg-white/5" />
         </div>
+      </section>
 
-        <div className="rounded-2xl border border-white/10 bg-[#131513] p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">
-                Tempo ouvido
-              </p>
+      {/* Stats */}
+      <div className="mb-10 grid gap-4 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map(
+          (_, index) => (
+            <div
+              key={index}
+              className="h-32 rounded-2xl border border-white/10 bg-[#131513]"
+            />
+          ),
+        )}
+      </div>
 
-              <p className="mt-1 text-xs text-white/40">
-                Nos últimos 30 dias
-              </p>
-            </div>
+      {/* Tracks */}
+      <div>
+        <div className="mb-5 h-6 w-32 rounded bg-white/5" />
 
-            <Play className="size-5 text-[#d8ff3e]" />
-          </div>
-
-          <p className="mt-6 text-3xl font-semibold">
-            18h 42m
-          </p>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map(
+            (_, index) => (
+              <div
+                key={index}
+                className="h-16 rounded-xl bg-white/5"
+              />
+            ),
+          )}
         </div>
       </div>
-    </section>
+    </div>
   )
 }
+
+/* =========================================================
+   MUSIC PROFILE
+========================================================= */
 
 export default function MusicProfile({
   isOwner = true,
-  username = 'william',
+  username,
 }: MusicProfileProps) {
   const [query, setQuery] = useState('')
-  const [active, setActive] = useState(
-    isOwner ? '' : '',
-  )
+  const [active, setActive] = useState('')
+
+  const [artist, setArtist] =
+    useState<Artist | null>(null)
+
+  const [isLoadingProfile, setIsLoadingProfile] =
+    useState(true)
+
+  const {
+    user,
+    isLoading: isAuthLoading,
+  } = useAuth()
 
   const { play } = usePlayerStore()
 
-  const results = useMemo(() => {
-    if (!query.trim()) {
-      return tracks
+  /* =======================================================
+     LOAD ARTIST PROFILE
+  ======================================================= */
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadProfile() {
+      try {
+        setIsLoadingProfile(true)
+
+        let response
+
+        if (isOwner) {
+          /*
+           * O token já está disponível no AuthContext.
+           *
+           * O /artists/me continua sendo usado apenas
+           * para buscar os dados específicos do artista.
+           */
+          response = await ArtistsService.getMe()
+        } else {
+          if (!username) {
+            if (!cancelled) {
+              setArtist(null)
+              setIsLoadingProfile(false)
+            }
+
+            return
+          }
+
+          response =
+            await ArtistsService.getByUsername(
+              username,
+            )
+        }
+
+        if (!cancelled) {
+          setArtist(response.data)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(
+            'Erro ao carregar perfil do artista:',
+            error,
+          )
+
+          setArtist(null)
+
+          toast.error(
+            'Não foi possível carregar o perfil',
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingProfile(false)
+        }
+      }
     }
 
-    return tracks.filter((track) =>
-      `${track.title} ${track.artist} ${track.genre}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
-    )
-  }, [query])
+    /*
+     * Perfil próprio:
+     *
+     * Primeiro esperamos apenas a autenticação
+     * terminar.
+     *
+     * NÃO dependemos do `user` aqui.
+     *
+     * Isso evita chamar /artists/me novamente quando
+     * updateUser() atualizar o AuthContext.
+     */
+    if (isOwner) {
+      if (isAuthLoading) {
+        return
+      }
 
-  const playTrack = (track: Track) => {
+      if (!user) {
+        setIsLoadingProfile(false)
+        setArtist(null)
+        return
+      }
+    }
+
+    /*
+     * Perfil público:
+     * precisa do username.
+     */
+    if (!isOwner && !username) {
+      setIsLoadingProfile(false)
+      setArtist(null)
+      return
+    }
+
+    loadProfile()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    isOwner,
+    username,
+    isAuthLoading,
+  ])
+
+  /* =======================================================
+     TRACKS
+  ======================================================= */
+
+  const profileTracks = artist?.tracks ?? []
+
+  /* =======================================================
+     SEARCH
+  ======================================================= */
+
+  const results = useMemo(() => {
+    if (!query.trim()) {
+      return profileTracks
+    }
+
+    const search = query.toLowerCase()
+
+    return profileTracks.filter((track) => {
+      const text = `
+        ${track.title}
+        ${track.artist?.name ?? artist?.name ?? ''}
+        ${track.genre?.name ?? ''}
+      `
+
+      return text
+        .toLowerCase()
+        .includes(search)
+    })
+  }, [
+    profileTracks,
+    query,
+    artist,
+  ])
+
+  /* =======================================================
+     PLAY TRACK
+  ======================================================= */
+
+  const playTrack = async (track: Track) => {
     play(track)
-    toast.success(`Reproduzindo ${track.title}`)
+
+    try {
+      await tracksService.play(track.id)
+    } catch (error) {
+      console.error(
+        'Erro ao registrar reprodução:',
+        error,
+      )
+    }
+
+    toast.success(
+      `Reproduzindo ${track.title}`,
+    )
   }
+
+  /* =======================================================
+     AUTH LOADING
+  ======================================================= */
+
+  /*
+   * Só bloqueamos enquanto ainda não sabemos se
+   * existe autenticação.
+   *
+   * O carregamento do artista NÃO bloqueia a página.
+   */
+  if (isOwner && isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#0c0d0c] text-white">
+        <main className="mx-auto max-w-[1500px] px-5 py-8 md:px-9 md:py-10">
+          <ProfileSkeleton />
+        </main>
+      </div>
+    )
+  }
+
+  /* =======================================================
+     AUTH REQUIRED
+  ======================================================= */
+
+  if (isOwner && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0c0d0c] text-white">
+        <p className="text-sm text-white/40">
+          Você precisa estar autenticado.
+        </p>
+      </div>
+    )
+  }
+
+  /* =======================================================
+     PAGE
+  ======================================================= */
 
   return (
     <div className="min-h-screen bg-[#0c0d0c] text-white">
@@ -420,7 +629,8 @@ export default function MusicProfile({
           style: {
             background: '#1b1e1b',
             color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
+            border:
+              '1px solid rgba(255,255,255,.1)',
           },
         }}
       />
@@ -436,21 +646,49 @@ export default function MusicProfile({
         />
 
         <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-9 md:py-10">
-          <ProfileHero
-            isOwner={isOwner}
-            username={username}
-          />
+          {/* 
+           * Enquanto /artists/me carrega, mostramos skeleton
+           * apenas no conteúdo do perfil.
+           *
+           * A aplicação continua com a estrutura normal.
+           */}
+          {isLoadingProfile && !artist ? (
+            <ProfileSkeleton />
+          ) : !artist ? (
+            <div className="flex min-h-[500px] items-center justify-center">
+              <div className="text-center">
+                <p className="text-lg font-medium">
+                  Usuário não encontrado.
+                </p>
 
-          <ProfileStats />
+                <p className="mt-2 text-sm text-white/40">
+                  Não foi possível encontrar este
+                  perfil.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <ProfileHero
+                artist={artist}
+                isOwner={isOwner}
+                authUser={user}
+              />
 
-          <ProfileTracks
-            isOwner={isOwner}
-            onPlay={playTrack}
-          />
+              <ProfileStats
+                tracks={profileTracks}
+                followers={Number(
+                  artist.followers ?? 0,
+                )}
+              />
 
-          <ProfilePlaylists />
-
-          {isOwner && <PrivateActivity />}
+              <ProfileTracks
+                tracks={results}
+                isOwner={isOwner}
+                onPlay={playTrack}
+              />
+            </>
+          )}
         </div>
       </main>
     </div>

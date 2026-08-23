@@ -10,6 +10,7 @@ export interface User {
   avatarUrl?: string;
   bio?: string;
   genre?: string;
+  createdAt: string
 }
 
 export enum Role {

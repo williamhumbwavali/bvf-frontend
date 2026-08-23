@@ -1,39 +1,69 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
 import Link from 'next/link'
+
 import {
   ArrowLeft,
   Camera,
   Check,
-  Globe,
   Lock,
   Save,
   User,
 } from 'lucide-react'
+
 import { toast } from 'sonner'
+
+import { usersService } from '@/services/users.service'
+import { useAuth, } from '@/contexts/auth-context'
+import { tracksService } from '@/services/tracks.service'
 
 export default function EditProfile() {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { user, updateUser } = useAuth()
 
-  const [avatar, setAvatar] = useState(
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80',
-  )
-
-  const [name, setName] = useState('William')
-  const [username, setUsername] = useState('william')
-  const [bio, setBio] = useState(
-    'Criando sons para quem ainda está acordado.',
-  )
-  const [website, setWebsite] = useState('')
-  const [instagram, setInstagram] = useState('')
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
+  const [bio, setBio] = useState('')
 
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
 
-  const handleAvatarChange = (
+  const [initialAvatar, setInitialAvatar] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoading(true)
+
+        setName(user?.name ?? '')
+        setUsername(user?.username ?? '')
+        setBio(user?.bio ?? '')
+
+        setAvatar(user?.avatarUrl ?? null)
+        setInitialAvatar(user?.avatarUrl ?? null)
+      } catch (error) {
+        console.error('Erro ao carregar perfil:', error)
+
+        toast.error(
+          'Não foi possível carregar os dados do perfil.',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProfile()
+  }, [user])
+
+  const handleAvatarChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0]
+    let url;
 
     if (!file) return
 
@@ -48,10 +78,37 @@ export default function EditProfile() {
     }
 
     const preview = URL.createObjectURL(file)
+
+    url = await uploadAvatar(file);
+
     setAvatar(preview)
+    setAvatarFile(file)
+    setInitialAvatar(url)
   }
 
-  const handleSave = async (event: React.FormEvent) => {
+  const uploadAvatar = async (file: File) => {
+    const upload = await tracksService.upload(
+      {
+        name: file.name,
+        type: file.type,
+      },
+      'cover',
+    )
+
+    await fetch(upload.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+      },
+      body: file,
+    })
+
+    return upload.publicUrl
+  }
+
+  const handleSave = async (
+    event: React.FormEvent,
+  ) => {
     event.preventDefault()
 
     if (!name.trim()) {
@@ -64,19 +121,56 @@ export default function EditProfile() {
       return
     }
 
-    setSaving(true)
+    if (bio.length > 160) {
+      toast.error(
+        'A biografia deve ter no máximo 160 caracteres.',
+      )
+      return
+    }
 
-    // Substituir posteriormente pela API
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      setSaving(true)
 
-    setSaving(false)
+      const response = await usersService.updateProfile({
+        name: name.trim(),
+        username: username.trim(),
+        bio: bio.trim(),
+        avatarUrl: initialAvatar ?? undefined,
+      })
 
-    toast.success('Perfil atualizado com sucesso.')
+      updateUser(response.data)
+
+    } catch (error: any) {
+      console.error(
+        'Erro ao atualizar perfil:',
+        error,
+      )
+
+      toast.error(
+        error?.message ||
+        'Não foi possível atualizar o perfil.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#0c0d0c] text-white">
+        <div className="mx-auto flex min-h-screen max-w-5xl items-center justify-center px-5">
+          <p className="text-sm text-white/40">
+            Carregando perfil...
+          </p>
+        </div>
+      </main>
+    )
   }
 
   return (
-    <main className="min-h-screen bg-[#0c0d0c] text-white mb-12">
+    <main className="mb-12 min-h-screen bg-[#0c0d0c] text-white">
       {/* Header */}
+
       <header className="sticky top-0 z-20 border-b border-white/8 bg-[#0c0d0c]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-[72px] max-w-5xl items-center justify-between px-5 md:px-8">
           <Link
@@ -88,7 +182,6 @@ export default function EditProfile() {
           </Link>
 
           <div className="hidden items-center gap-2 sm:flex">
-
             <span className="font-mono text-[11px] font-bold tracking-[-0.04em]">
               BAD VIBES FOREVER
             </span>
@@ -98,6 +191,7 @@ export default function EditProfile() {
 
       <div className="mx-auto max-w-5xl px-5 py-8 md:px-8 md:py-12">
         {/* Título */}
+
         <div className="mb-10">
           <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-[#d8ff3e]">
             Sua conta
@@ -115,25 +209,35 @@ export default function EditProfile() {
         <form onSubmit={handleSave}>
           <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
             {/* Avatar */}
+
             <section className="rounded-2xl border border-white/10 bg-[#131513] p-6">
               <p className="mb-5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
                 Foto de perfil
               </p>
 
               <div className="flex flex-col items-center">
-                <div className="group relative size-36 overflow-hidden rounded-full border border-white/10">
-                  <img
-                    src={avatar}
-                    alt="Foto de perfil"
-                    className="size-full object-cover"
-                  />
+                <div className="group relative size-36 overflow-hidden rounded-full border border-white/10 bg-white/5">
+                  {avatar ? (
+                    <img
+                      src={avatar}
+                      alt="Foto de perfil"
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center">
+                      <User className="size-12 text-white/20" />
+                    </div>
+                  )}
 
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() =>
+                      fileInputRef.current?.click()
+                    }
                     className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     <Camera className="size-5" />
+
                     <span className="text-[10px] font-medium">
                       Alterar
                     </span>
@@ -150,7 +254,9 @@ export default function EditProfile() {
 
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() =>
+                    fileInputRef.current?.click()
+                  }
                   className="mt-4 text-xs font-semibold text-[#d8ff3e] hover:underline"
                 >
                   Alterar foto
@@ -165,6 +271,7 @@ export default function EditProfile() {
             </section>
 
             {/* Informações */}
+
             <section className="rounded-2xl border border-white/10 bg-[#131513] p-6 md:p-8">
               <div className="mb-7">
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
@@ -178,6 +285,7 @@ export default function EditProfile() {
 
               <div className="space-y-6">
                 {/* Nome */}
+
                 <div>
                   <label
                     htmlFor="name"
@@ -192,15 +300,19 @@ export default function EditProfile() {
                     <input
                       id="name"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) =>
+                        setName(e.target.value)
+                      }
                       maxLength={50}
-                      className="h-11 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 text-sm outline-none transition-colors placeholder:text-white/20 focus:border-[#d8ff3e]/60"
+                      disabled={saving}
+                      className="h-11 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 text-sm outline-none transition-colors placeholder:text-white/20 focus:border-[#d8ff3e]/60 disabled:opacity-50"
                       placeholder="Seu nome"
                     />
                   </div>
                 </div>
 
                 {/* Username */}
+
                 <div>
                   <label
                     htmlFor="username"
@@ -210,7 +322,9 @@ export default function EditProfile() {
                   </label>
 
                   <div className="flex h-11 items-center rounded-lg border border-white/10 bg-white/5">
-                    <span className="pl-3 text-sm text-white/25">@</span>
+                    <span className="pl-3 text-sm text-white/25">
+                      @
+                    </span>
 
                     <input
                       id="username"
@@ -219,21 +333,27 @@ export default function EditProfile() {
                         setUsername(
                           e.target.value
                             .toLowerCase()
-                            .replace(/[^a-z0-9_.]/g, ''),
+                            .replace(
+                              /[^a-z0-9_.]/g,
+                              '',
+                            ),
                         )
                       }
                       maxLength={30}
-                      className="h-full flex-1 bg-transparent px-2 text-sm outline-none"
+                      disabled={saving}
+                      className="h-full flex-1 bg-transparent px-2 text-sm outline-none disabled:opacity-50"
                       placeholder="seuusuario"
                     />
                   </div>
 
                   <p className="mt-2 text-[11px] text-white/25">
-                    Seu nome de usuário será usado no endereço do seu perfil.
+                    Seu nome de usuário será usado no endereço
+                    do seu perfil.
                   </p>
                 </div>
 
                 {/* Bio */}
+
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <label
@@ -251,71 +371,22 @@ export default function EditProfile() {
                   <textarea
                     id="bio"
                     value={bio}
-                    onChange={(e) => setBio(e.target.value)}
+                    onChange={(e) =>
+                      setBio(e.target.value)
+                    }
                     maxLength={160}
                     rows={4}
+                    disabled={saving}
                     placeholder="Conte um pouco sobre você..."
-                    className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 outline-none transition-colors placeholder:text-white/20 focus:border-[#d8ff3e]/60"
+                    className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 outline-none transition-colors placeholder:text-white/20 focus:border-[#d8ff3e]/60 disabled:opacity-50"
                   />
-                </div>
-
-                {/* Website */}
-                <div>
-                  <label
-                    htmlFor="website"
-                    className="mb-2 block text-xs font-medium text-white/60"
-                  >
-                    Website
-                  </label>
-
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/25" />
-
-                    <input
-                      id="website"
-                      type="url"
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                      className="h-11 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 text-sm outline-none transition-colors placeholder:text-white/20 focus:border-[#d8ff3e]/60"
-                      placeholder="https://seusite.com"
-                    />
-                  </div>
-                </div>
-
-                {/* Instagram */}
-                <div>
-                  <label
-                    htmlFor="instagram"
-                    className="mb-2 block text-xs font-medium text-white/60"
-                  >
-                    Instagram
-                  </label>
-
-                  <div className="flex h-11 items-center rounded-lg border border-white/10 bg-white/5">
-                    <Camera className="ml-3 size-4 text-white/25" />
-
-                    <span className="ml-2 text-sm text-white/25">
-                      instagram.com/
-                    </span>
-
-                    <input
-                      id="instagram"
-                      value={instagram}
-                      onChange={(e) =>
-                        setInstagram(
-                          e.target.value.replace(/[^a-zA-Z0-9_.]/g, ''),
-                        )
-                      }
-                      className="h-full min-w-0 flex-1 bg-transparent px-1 text-sm outline-none"
-                      placeholder="seuusuario"
-                    />
-                  </div>
                 </div>
               </div>
             </section>
           </div>
 
           {/* Privacidade */}
+
           <section className="mt-6 rounded-2xl border border-white/10 bg-[#131513] p-6 md:p-8">
             <div className="flex items-start gap-4">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-[#d8ff3e]">
@@ -328,9 +399,10 @@ export default function EditProfile() {
                 </h2>
 
                 <p className="mt-1 max-w-2xl text-xs leading-5 text-white/40">
-                  Seu perfil pode ser encontrado por outras pessoas. Suas
-                  músicas publicadas e informações públicas estarão disponíveis
-                  para quem visitar seu perfil.
+                  Seu perfil pode ser encontrado por outras
+                  pessoas. Suas músicas publicadas e
+                  informações públicas estarão disponíveis para
+                  quem visitar seu perfil.
                 </p>
               </div>
 
@@ -341,6 +413,7 @@ export default function EditProfile() {
           </section>
 
           {/* Ações */}
+
           <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Link
               href="/profile"

@@ -12,6 +12,10 @@ export interface Playlist {
   updatedAt?: string;
 }
 
+export interface PlaylistResponse {
+  data: Playlist[];
+}
+
 export interface CreatePlaylistData {
   title: string;
   description?: string;
@@ -20,7 +24,7 @@ export interface CreatePlaylistData {
 
 export const playlistsService = {
   list() {
-    return api.get<Playlist[]>(
+    return api.get<PlaylistResponse>(
       API_ENDPOINTS.PLAYLISTS.LIST,
       {
         auth: true,
