@@ -78,17 +78,6 @@ export default function PrivacyPage() {
 
   return (
     <div className="min-h-screen bg-[#0c0d0c] text-white mb-12">
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1b1e1b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
-          },
-        }}
-      />
 
       <main className="mx-auto min-h-screen w-full max-w-3xl px-5 py-8 md:px-8 md:py-12">
         {/* Header */}

@@ -244,18 +244,6 @@ export default function EditProfile() {
   return (
     <main className="mb-12 min-h-screen bg-[#0c0d0c] text-white">
       {/* Header */}
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1b1e1b',
-            color: '#fff',
-            border:
-              '1px solid rgba(255,255,255,.1)',
-          },
-        }}
-      />
 
       <header className="sticky top-0 z-20 border-b border-white/8 bg-[#0c0d0c]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-[72px] max-w-5xl items-center justify-between px-5 md:px-8">

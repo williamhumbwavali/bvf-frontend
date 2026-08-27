@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 
 import { Providers } from './providers'
+import { Toaster } from 'sonner'
 
 const geist = Geist({
   subsets: ['latin'],
@@ -41,6 +42,18 @@ export default function RootLayout({
       <body
         className={`${geist.variable} ${geistMono.variable} antialiased`}
       >
+        <Toaster
+          theme="dark"
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: '#1b1e1b',
+              color: '#fff',
+              border:
+                '1px solid rgba(255,255,255,.1)',
+            },
+          }}
+        />
         <Providers>
           {children}
         </Providers>

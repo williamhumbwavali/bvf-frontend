@@ -66,17 +66,6 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-[#0c0d0c] text-white">
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1b1e1b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
-          },
-        }}
-      />
 
       <div className="grid min-h-screen lg:grid-cols-2">
 

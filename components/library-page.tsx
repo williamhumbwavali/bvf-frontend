@@ -9,7 +9,7 @@ import {
   Play,
   Plus,
 } from 'lucide-react'
-import { Toaster, toast } from 'sonner'
+import { toast } from 'sonner'
 import Link from 'next/link'
 
 import { usePlayerStore } from '@/stores/player-store'
@@ -28,9 +28,17 @@ import {
   Like,
   DownloadHistory,
 } from '@/services/users.service'
-import { Playlist, playlistsService } from '@/services/playlists.service'
+
+import {
+  Playlist,
+  playlistsService,
+} from '@/services/playlists.service'
 
 type LibraryTab = 'Curtidas' | 'Playlists' | 'Downloads'
+
+/* =========================================================
+   COVER
+========================================================= */
 
 function Cover({
   src,
@@ -80,9 +88,11 @@ function LibraryHeader() {
 
 function LibraryStats({
   likedCount,
+  playlistCount,
   downloadCount,
 }: {
   likedCount: number
+  playlistCount: number
   downloadCount: number
 }) {
   const stats = [
@@ -93,7 +103,7 @@ function LibraryStats({
     },
     {
       label: 'Playlists',
-      value: 0,
+      value: playlistCount,
       icon: ListMusic,
     },
     {
@@ -142,32 +152,35 @@ function LibraryTabs({
     label: LibraryTab
     icon: typeof Heart
   }[] = [
-      {
-        label: 'Curtidas',
-        icon: Heart,
-      },
-      {
-        label: 'Playlists',
-        icon: ListMusic,
-      },
-      {
-        label: 'Downloads',
-        icon: Download,
-      },
-    ]
+    {
+      label: 'Curtidas',
+      icon: Heart,
+    },
+    {
+      label: 'Playlists',
+      icon: ListMusic,
+    },
+    {
+      label: 'Downloads',
+      icon: Download,
+    },
+  ]
 
   return (
     <div className="mb-8 flex gap-1 overflow-x-auto rounded-xl bg-white/5 p-1">
       {tabs.map(({ label, icon: Icon }) => (
         <button
           key={label}
+          type="button"
           onClick={() => onChange(label)}
-          className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs transition-colors ${active === label
+          className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs transition-colors ${
+            active === label
               ? 'bg-white/10 text-white'
               : 'text-white/40 hover:text-white'
-            }`}
+          }`}
         >
           <Icon className="size-4" />
+
           {label}
         </button>
       ))}
@@ -232,7 +245,42 @@ function LikedTracks({
    PLAYLISTS
 ========================================================= */
 
-function PlaylistGrid({ playlists }: {playlists: Playlist[]}) {
+function PlaylistGrid({
+  playlists,
+}: {
+  playlists: Playlist[]
+}) {
+  if (playlists.length === 0) {
+    return (
+      <section>
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">
+              Suas playlists
+            </h2>
+
+            <p className="mt-1 text-xs text-white/35">
+              Organize sua música do seu jeito.
+            </p>
+          </div>
+
+          <Link
+            href="/playlists/create"
+            className="flex items-center gap-2 text-xs text-white/40 transition-colors hover:text-[#d8ff3e]"
+          >
+            <Plus className="size-4" />
+            Nova playlist
+          </Link>
+        </div>
+
+        <EmptyState
+          icon={ListMusic}
+          title="Você ainda não tem playlists"
+          description="Crie sua primeira playlist e comece a organizar suas músicas."
+        />
+      </section>
+    )
+  }
 
   return (
     <section>
@@ -243,13 +291,16 @@ function PlaylistGrid({ playlists }: {playlists: Playlist[]}) {
           </h2>
 
           <p className="mt-1 text-xs text-white/35">
-            Organize sua música do seu jeito.
+            {playlists.length}{' '}
+            {playlists.length === 1
+              ? 'playlist'
+              : 'playlists'}
           </p>
         </div>
 
         <Link
-          href='/playlists/create'
-          className="flex items-center gap-2 text-xs text-white/40 hover:text-[#d8ff3e]"
+          href="/playlists/create"
+          className="flex items-center gap-2 text-xs text-white/40 transition-colors hover:text-[#d8ff3e]"
         >
           <Plus className="size-4" />
           Nova playlist
@@ -260,6 +311,7 @@ function PlaylistGrid({ playlists }: {playlists: Playlist[]}) {
         {playlists.map((playlist) => (
           <button
             key={playlist.id}
+            type="button"
             onClick={() =>
               toast.info(
                 `${playlist.title} será aberta em breve`,
@@ -268,19 +320,28 @@ function PlaylistGrid({ playlists }: {playlists: Playlist[]}) {
             className="group text-left"
           >
             <div className="relative mb-3 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white/5">
-              <ListMusic className="size-8 text-white/20" />
+              {playlist.coverUrl ? (
+                <Cover
+                  src={playlist.coverUrl}
+                  alt={`Capa da playlist ${playlist.title}`}
+                  className="size-full"
+                />
+              ) : (
+                <ListMusic className="size-8 text-white/20" />
+              )}
 
               <span className="absolute bottom-3 right-3 flex size-10 translate-y-2 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110] opacity-0 shadow-xl transition-all group-hover:translate-y-0 group-hover:opacity-100">
                 <Play className="ml-0.5 size-4 fill-current" />
               </span>
             </div>
 
-            <h3 className="text-sm font-medium">
+            <h3 className="truncate text-sm font-medium">
               {playlist.title}
             </h3>
 
             <p className="mt-1 truncate text-xs text-white/25">
-              {playlist.description}
+              {playlist.description ||
+                'Nenhuma descrição'}
             </p>
           </button>
         ))}
@@ -378,18 +439,23 @@ function EmptyState({
 
 export default function LibraryPage() {
   const [query, setQuery] = useState('')
+
   const [activeTab, setActiveTab] =
     useState<LibraryTab>('Curtidas')
 
   const [tracks, setTracks] = useState<Track[]>([])
-  const [likedIds, setLikedIds] = useState<Set<string>>(
-    new Set(),
-  )
+
+  const [likedIds, setLikedIds] =
+    useState<Set<string>>(new Set())
+
   const [downloadIds, setDownloadIds] =
     useState<Set<string>>(new Set())
-  const [playlists, setPlaylists] = useState<Playlist[]>([])
 
-  const [loading, setLoading] = useState(true)
+  const [playlists, setPlaylists] =
+    useState<Playlist[]>([])
+
+  const [loading, setLoading] =
+    useState(true)
 
   const { play } = usePlayerStore()
 
@@ -406,7 +472,7 @@ export default function LibraryPage() {
           tracksResponse,
           likedResponse,
           downloadsResponse,
-          playlistsResponse
+          playlistsResponse,
         ] = await Promise.all([
           tracksService.list(1, 100),
           usersService.getLikedTracks(),
@@ -414,34 +480,17 @@ export default function LibraryPage() {
           playlistsService.list(),
         ])
 
-        const playlists = playlistsResponse.data
+        /* ===================================================
+           TRACKS
+        =================================================== */
 
-        /*
-         * tracksService.list()
-         *
-         * response:
-         * {
-         *   data: {
-         *     data: Track[],
-         *     meta: {...}
-         *   }
-         * }
-         */
+        setTracks(
+          tracksResponse.data.data,
+        )
 
-        setTracks(tracksResponse.data.data)
-
-        /*
-         * Curtidas:
-         *
-         * [
-         *   {
-         *     id,
-         *     userId,
-         *     trackId,
-         *     createdAt
-         *   }
-         * ]
-         */
+        /* ===================================================
+           CURTIDAS
+        =================================================== */
 
         const likedSet = new Set(
           likedResponse.data.map(
@@ -451,18 +500,9 @@ export default function LibraryPage() {
 
         setLikedIds(likedSet)
 
-        /*
-         * Downloads:
-         *
-         * [
-         *   {
-         *     id,
-         *     userId,
-         *     trackId,
-         *     downloadedAt
-         *   }
-         * ]
-         */
+        /* ===================================================
+           DOWNLOADS
+        =================================================== */
 
         const downloadSet = new Set(
           downloadsResponse.data.map(
@@ -472,6 +512,14 @@ export default function LibraryPage() {
         )
 
         setDownloadIds(downloadSet)
+
+        /* ===================================================
+           PLAYLISTS
+        =================================================== */
+
+        setPlaylists(
+          playlistsResponse.data,
+        )
       } catch (error) {
         console.error(
           'Erro ao carregar biblioteca:',
@@ -509,7 +557,9 @@ export default function LibraryPage() {
         ${track.genre?.name ?? ''}
       `.toLowerCase()
 
-      return searchableText.includes(normalizedQuery)
+      return searchableText.includes(
+        normalizedQuery,
+      )
     })
   }, [tracks, query])
 
@@ -529,8 +579,13 @@ export default function LibraryPage() {
      SIDEBAR
   ======================================================= */
 
-  const handleSidebarSelect = (label: string) => {
-    const routes: Record<string, string> = {
+  const handleSidebarSelect = (
+    label: string,
+  ) => {
+    const routes: Record<
+      string,
+      string
+    > = {
       Início: '/',
       Descobrir: '/discover',
       Biblioteca: '/library',
@@ -538,7 +593,8 @@ export default function LibraryPage() {
     }
 
     if (routes[label]) {
-      window.location.href = routes[label]
+      window.location.href =
+        routes[label]
     }
   }
 
@@ -589,19 +645,6 @@ export default function LibraryPage() {
         onSelect={handleSidebarSelect}
       />
 
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1b1e1b',
-            color: '#fff',
-            border:
-              '1px solid rgba(255,255,255,.1)',
-          },
-        }}
-      />
-
       <main className="min-h-screen pb-24 lg:pl-60">
         <MusicHeader
           query={query}
@@ -613,6 +656,7 @@ export default function LibraryPage() {
 
           <LibraryStats
             likedCount={likedIds.size}
+            playlistCount={playlists.length}
             downloadCount={downloadIds.size}
           />
 
@@ -678,7 +722,9 @@ export default function LibraryPage() {
               ================================================= */}
 
               {activeTab === 'Playlists' && (
-                <PlaylistGrid playlists={playlists} />
+                <PlaylistGrid
+                  playlists={playlists}
+                />
               )}
 
               {/* =================================================

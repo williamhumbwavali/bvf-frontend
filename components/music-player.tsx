@@ -287,7 +287,7 @@ export default function MusicPlayer() {
 
                 const randomIndex = Math.floor(
                     Math.random() *
-                        availableTracks.length,
+                    availableTracks.length,
                 )
 
                 const nextTrack =
@@ -522,7 +522,7 @@ export default function MusicPlayer() {
 
             const randomIndex = Math.floor(
                 Math.random() *
-                    availableTracks.length,
+                availableTracks.length,
             )
 
             const previous =
@@ -549,7 +549,7 @@ export default function MusicPlayer() {
             ) {
                 const lastTrack =
                     currentQueue[
-                        currentQueue.length - 1
+                    currentQueue.length - 1
                     ]
 
                 if (lastTrack) {
@@ -601,7 +601,7 @@ export default function MusicPlayer() {
 
             const randomIndex = Math.floor(
                 Math.random() *
-                    availableTracks.length,
+                availableTracks.length,
             )
 
             const next =
@@ -687,28 +687,6 @@ export default function MusicPlayer() {
         setCurrentTime(time)
     }
 
-    /*
-     * Formatar tempo
-     */
-    const formatTime = (
-        seconds: number,
-    ) => {
-        if (!Number.isFinite(seconds)) {
-            return '0:00'
-        }
-
-        const minutes = Math.floor(
-            seconds / 60,
-        )
-
-        const remainingSeconds =
-            Math.floor(seconds % 60)
-
-        return `${minutes}:${remainingSeconds
-            .toString()
-            .padStart(2, '0')}`
-    }
-
     if (!currentTrack) {
         return null
     }
@@ -723,11 +701,11 @@ export default function MusicPlayer() {
                         width:
                             duration > 0
                                 ? `${Math.min(
-                                      (currentTime /
-                                          duration) *
-                                          100,
-                                      100,
-                                  )}%`
+                                    (currentTime /
+                                        duration) *
+                                    100,
+                                    100,
+                                )}%`
                                 : '0%',
                     }}
                 />
@@ -784,11 +762,10 @@ export default function MusicPlayer() {
                             }
                             aria-pressed={shuffle}
                             onClick={toggleShuffle}
-                            className={`hidden transition-colors sm:block ${
-                                shuffle
+                            className={`hidden transition-colors sm:block ${shuffle
                                     ? 'text-[#d8ff3e]'
                                     : 'text-white/40 hover:text-white'
-                            }`}
+                                }`}
                         >
                             <Shuffle className="size-4" />
                         </button>
@@ -846,18 +823,17 @@ export default function MusicPlayer() {
                                 repeatMode === 'off'
                                     ? 'Ativar repetição'
                                     : repeatMode === 'all'
-                                      ? 'Repetir fila'
-                                      : 'Repetir música'
+                                        ? 'Repetir fila'
+                                        : 'Repetir música'
                             }
                             aria-pressed={
                                 repeatMode !== 'off'
                             }
                             onClick={cycleRepeat}
-                            className={`relative hidden transition-colors sm:block ${
-                                repeatMode !== 'off'
+                            className={`relative hidden transition-colors sm:block ${repeatMode !== 'off'
                                     ? 'text-[#d8ff3e]'
                                     : 'text-white/40 hover:text-white'
-                            }`}
+                                }`}
                         >
                             <Repeat className="size-4" />
 
@@ -908,11 +884,10 @@ export default function MusicPlayer() {
                         aria-label="Fila de reprodução"
                         aria-pressed={queueOpen}
                         onClick={toggleQueue}
-                        className={`rounded p-1.5 transition-colors ${
-                            queueOpen
+                        className={`rounded p-1.5 transition-colors ${queueOpen
                                 ? 'text-[#d8ff3e]'
                                 : 'text-white/40 hover:text-white'
-                        }`}
+                            }`}
                     >
                         <ListMusic className="size-4" />
                     </button>
@@ -934,4 +909,23 @@ export default function MusicPlayer() {
             </div>
         </footer>
     )
+}
+
+export function formatTime (
+    seconds: number | undefined,
+): any {
+    if (!Number.isFinite(seconds)) {
+        return '0:00'
+    }
+
+    const minutes = Math.floor(
+        seconds / 60,
+    )
+
+    const remainingSeconds =
+        Math.floor(seconds % 60)
+
+    return `${minutes}:${remainingSeconds
+        .toString()
+        .padStart(2, '0')}`
 }

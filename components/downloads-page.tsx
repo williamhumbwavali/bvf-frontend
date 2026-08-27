@@ -82,18 +82,6 @@ export default function DownloadsPage() {
         onSelect={setActive}
       />
 
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1b1e1b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
-          },
-        }}
-      />
-
       <main className="min-h-screen pb-32 lg:pl-60">
         <MusicHeader
           query={query}
