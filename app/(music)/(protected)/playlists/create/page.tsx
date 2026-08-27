@@ -10,17 +10,19 @@ import {
   Plus,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
+import { playlistsService } from '@/services/playlists.service'
+import { tracksService } from '@/services/tracks.service'
 
 export default function CreatePlaylistPage() {
   const router = useRouter()
 
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [visibility, setVisibility] = useState<'public' | 'private'>(
-    'public',
-  )
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [creating, setCreating] = useState(false)
+
   const [cover, setCover] = useState<string | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
 
   const handleCoverChange = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -29,42 +31,74 @@ export default function CreatePlaylistPage() {
 
     if (!file) return
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Selecione uma imagem válida.')
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem válida.")
       return
     }
 
     const imageUrl = URL.createObjectURL(file)
+
     setCover(imageUrl)
+    setCoverFile(file)
   }
 
-  const handleCreate = () => {
+  const uploadCover = async (file: File) => {
+    const upload = await tracksService.upload(
+      {
+        name: file.name,
+        type: file.type,
+      },
+      "cover",
+    )
+
+    await fetch(upload.uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
+    })
+
+    return upload.publicUrl
+  }
+
+  const handleCreate = async () => {
     if (!name.trim()) {
-      toast.error('Digite um nome para a playlist.')
+      toast.error("Digite um nome para a playlist.")
       return
     }
 
-    toast.success('Playlist criada com sucesso.')
+    try {
+      setCreating(true)
 
-    // Aqui futuramente:
-    // POST /playlists
+      let coverUrl: string | undefined
 
-    router.push('/playlists')
+      if (coverFile) {
+        coverUrl = await uploadCover(coverFile)
+      }
+
+      await playlistsService.create({
+        title: name.trim(),
+        description: description.trim() || undefined,
+        coverUrl,
+      })
+
+      toast.success("Playlist criada com sucesso.")
+
+      router.push("/playlists")
+    } catch (error) {
+      console.error("Erro ao criar playlist:", error)
+
+      toast.error(
+        "Não foi possível criar a playlist.",
+      )
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-[#0c0d0c] text-white">
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1b1e1b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,.1)',
-          },
-        }}
-      />
 
       <main className="mx-auto min-h-screen w-full max-w-4xl px-5 py-8 md:px-8 md:py-12 mb-12">
         {/* Header */}
@@ -208,10 +242,12 @@ export default function CreatePlaylistPage() {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  className="flex items-center justify-center gap-2 rounded-lg bg-[#d8ff3e] px-5 py-2.5 text-xs font-bold text-[#101110] transition-transform hover:scale-[1.02]"
+                  disabled={creating}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-[#d8ff3e] px-5 py-2.5 text-xs font-bold text-[#101110] transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                 >
                   <Plus className="size-4" />
-                  Criar playlist
+
+                  {creating ? "Criando..." : "Criar playlist"}
                 </button>
               </div>
             </div>
