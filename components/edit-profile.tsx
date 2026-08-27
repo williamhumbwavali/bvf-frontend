@@ -13,7 +13,7 @@ import {
   User,
 } from 'lucide-react'
 
-import { toast } from 'sonner'
+import { toast, Toaster } from 'sonner'
 
 import { usersService } from '@/services/users.service'
 import { useAuth, } from '@/contexts/auth-context'
@@ -33,37 +33,45 @@ export default function EditProfile() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
 
   const [initialAvatar, setInitialAvatar] = useState<string | null>(null)
+  const [initialData, setInitialData] = useState({
+    name: '',
+    username: '',
+    bio: '',
+    avatarUrl: null as string | null,
+  })
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true)
+    if (!user) return
 
-        setName(user?.name ?? '')
-        setUsername(user?.username ?? '')
-        setBio(user?.bio ?? '')
+    const initialName = user.name ?? ''
+    const initialUsername = normalizeUsername(user.username ?? '')
+    const initialBio = user.bio ?? ''
+    const initialAvatarUrl = user.avatarUrl ?? null
 
-        setAvatar(user?.avatarUrl ?? null)
-        setInitialAvatar(user?.avatarUrl ?? null)
-      } catch (error) {
-        console.error('Erro ao carregar perfil:', error)
+    setName(initialName)
+    setUsername(initialUsername)
+    setBio(initialBio)
+    setAvatar(initialAvatarUrl)
+    setInitialAvatar(initialAvatarUrl)
 
-        toast.error(
-          'Não foi possível carregar os dados do perfil.',
-        )
-      } finally {
-        setLoading(false)
-      }
-    }
+    setInitialData({
+      name: initialName.trim(),
+      username: initialUsername,
+      bio: initialBio.trim(),
+      avatarUrl: initialAvatarUrl,
+    })
 
-    loadProfile()
+    setLoading(false)
   }, [user])
 
-  const handleAvatarChange = async (
+  const normalizeUsername = (value: string) => {
+    return value.trim().toLowerCase()
+  }
+
+  const handleAvatarChange = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0]
-    let url;
 
     if (!file) return
 
@@ -79,11 +87,8 @@ export default function EditProfile() {
 
     const preview = URL.createObjectURL(file)
 
-    url = await uploadAvatar(file);
-
     setAvatar(preview)
     setAvatarFile(file)
-    setInitialAvatar(url)
   }
 
   const uploadAvatar = async (file: File) => {
@@ -111,35 +116,104 @@ export default function EditProfile() {
   ) => {
     event.preventDefault()
 
-    if (!name.trim()) {
+    const currentName = name.trim()
+    const currentUsername = normalizeUsername(username)
+    const currentBio = bio.trim()
+    const currentAvatarUrl = initialAvatar
+
+    if (!currentName) {
       toast.error('Digite o seu nome.')
       return
     }
 
-    if (!username.trim()) {
+    if (!currentUsername) {
       toast.error('Digite um nome de usuário.')
       return
     }
 
-    if (bio.length > 160) {
+    if (currentBio.length > 160) {
       toast.error(
         'A biografia deve ter no máximo 160 caracteres.',
       )
       return
     }
 
+    const nameChanged =
+      currentName !== initialData.name
+
+    const usernameChanged =
+      currentUsername !==
+      normalizeUsername(initialData.username)
+
+    const bioChanged =
+      currentBio !== initialData.bio
+
+    const avatarChanged = avatarFile !== null
+
+    const hasChanges =
+      nameChanged ||
+      usernameChanged ||
+      bioChanged ||
+      avatarChanged
+
+    if (!hasChanges) {
+      toast.info('Nenhuma alteração para salvar.')
+      return
+    }
+
     try {
       setSaving(true)
 
-      const response = await usersService.updateProfile({
-        name: name.trim(),
-        username: username.trim(),
-        bio: bio.trim(),
-        avatarUrl: initialAvatar ?? undefined,
-      })
+      const data: {
+        name?: string
+        username?: string
+        bio?: string
+        avatarUrl?: string
+      } = {}
+
+      if (nameChanged) {
+        data.name = currentName
+      }
+
+      if (usernameChanged) {
+        data.username = currentUsername
+      }
+
+      if (bioChanged) {
+        data.bio = currentBio
+      }
+
+      if (avatarFile) {
+        const avatarUrl = await uploadAvatar(avatarFile)
+
+        data.avatarUrl = avatarUrl
+      }
+
+      console.log('Dados enviados:', data)
+
+      const response =
+        await usersService.updateProfile(data)
 
       updateUser(response.data)
 
+      setInitialData({
+        name: response.data.name,
+        username: normalizeUsername(
+          response.data.username,
+        ),
+        bio: response.data.bio?.trim() ?? '',
+        avatarUrl: response.data.avatarUrl ?? null,
+      })
+
+      setInitialAvatar(
+        response.data.avatarUrl ?? null,
+      )
+
+      setAvatarFile(null)
+
+      toast.success(
+        'Perfil atualizado com sucesso.',
+      )
     } catch (error: any) {
       console.error(
         'Erro ao atualizar perfil:',
@@ -170,6 +244,18 @@ export default function EditProfile() {
   return (
     <main className="mb-12 min-h-screen bg-[#0c0d0c] text-white">
       {/* Header */}
+      <Toaster
+        theme="dark"
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1b1e1b',
+            color: '#fff',
+            border:
+              '1px solid rgba(255,255,255,.1)',
+          },
+        }}
+      />
 
       <header className="sticky top-0 z-20 border-b border-white/8 bg-[#0c0d0c]/95 backdrop-blur-sm">
         <div className="mx-auto flex h-[72px] max-w-5xl items-center justify-between px-5 md:px-8">
