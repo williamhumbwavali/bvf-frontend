@@ -77,24 +77,27 @@ export default function MusicHeader({
 
       {/* Perfil */}
       <Link
-        href="/profile"
-        className="flex items-center gap-2"
+        href={user ? "/profile" : "/login"}
+        className="flex items-center gap-2 rounded-full transition-opacity hover:opacity-80"
       >
         {user?.avatarUrl ? (
           <img
             src={user.avatarUrl}
-            alt={user.name}
-            className="size-8 shrink-0 rounded-full border-4 border-[#131513] object-cover md:size-8"
+            alt={user.name || "Avatar"}
+            className="size-8 shrink-0 rounded-full border-4 border-[#131513] object-cover"
           />
         ) : (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full border-4 border-[#131513] bg-[#d8ff3e] text-2xl font-bold text-[#101110] md:size-32 md:text-4xl">
-            {initials}
+          <div
+            className="flex size-8 shrink-0 items-center justify-center rounded-full border-4 border-[#131513] bg-[#d8ff3e] text-sm font-bold text-[#101110]"
+            aria-hidden="true"
+          >
+            {user ? initials : "?"}
           </div>
         )}
 
-        <div className="hidden flex-col sm:flex">
+        <div className="hidden min-w-0 flex-col sm:flex">
           <span className="max-w-[120px] truncate text-xs font-medium text-white">
-            {user?.name || 'Usuário'}
+            {user?.name || "Login"}
           </span>
 
           {user?.username && (
@@ -104,7 +107,12 @@ export default function MusicHeader({
           )}
         </div>
 
-        <ChevronDown className="hidden size-4 text-white/45 sm:block" />
+        {user && (
+          <ChevronDown
+            className="hidden size-4 shrink-0 text-white/45 sm:block"
+            aria-hidden="true"
+          />
+        )}
       </Link>
     </header>
   )

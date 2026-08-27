@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 
 import { tracksService, type Track } from '@/services/tracks.service'
 import { usePlayerStore } from '@/stores/player-store'
+import Link from 'next/link'
 
 export default function MusicPage() {
   const params = useParams()
@@ -78,13 +79,7 @@ export default function MusicPage() {
   }, [trackId])
 
   if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#101110] text-white">
-        <p className="text-sm text-white/40">
-          Carregando música...
-        </p>
-      </main>
-    )
+    return <MusicSkeleton />
   }
 
   if (!track) {
@@ -255,11 +250,9 @@ export default function MusicPage() {
                 )}
               </div>
 
-              <span className="text-sm font-medium">
+              <Link className="text-sm font-medium" href={`/artist/${track.artist?.handle}`}>
                 {track.artist?.name ?? 'Artista desconhecido'}
-              </span>
-
-              <UserPlus className="ml-1 size-4" />
+              </Link>
             </button>
 
             <p className="mt-5 max-w-2xl text-sm leading-6 text-white/45">
@@ -300,16 +293,14 @@ export default function MusicPage() {
                     : 'Curtir música'
                 }
                 aria-pressed={isLiked}
-                className={`flex size-11 items-center justify-center rounded-full border transition ${
-                  isLiked
+                className={`flex size-11 items-center justify-center rounded-full border transition ${isLiked
                     ? 'border-[#d8ff3e]/30 bg-[#d8ff3e]/10 text-[#d8ff3e]'
                     : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                }`}
+                  }`}
               >
                 <Heart
-                  className={`size-5 ${
-                    isLiked ? 'fill-current' : ''
-                  }`}
+                  className={`size-5 ${isLiked ? 'fill-current' : ''
+                    }`}
                 />
               </button>
 
@@ -486,7 +477,7 @@ export default function MusicPage() {
 
                       <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/40">
                         {isRelatedCurrent &&
-                        isPlaying ? (
+                          isPlaying ? (
                           <Pause className="size-4 fill-white text-white opacity-100" />
                         ) : (
                           <Play className="size-4 scale-75 fill-white text-white opacity-0 transition group-hover:scale-100 group-hover:opacity-100" />
@@ -496,11 +487,10 @@ export default function MusicPage() {
 
                     <div className="min-w-0 flex-1">
                       <p
-                        className={`truncate text-sm font-medium ${
-                          isRelatedCurrent
+                        className={`truncate text-sm font-medium ${isRelatedCurrent
                             ? 'text-[#d8ff3e]'
                             : 'text-white'
-                        }`}
+                          }`}
                       >
                         {item.title}
                       </p>
@@ -569,4 +559,116 @@ function formatDuration(value?: number) {
   return `${minutes}:${seconds
     .toString()
     .padStart(2, '0')}`
+}
+
+function MusicSkeleton() {
+  return (
+    <main className="min-h-screen bg-[#101110] pb-32 text-white">
+      {/* Header */}
+      <header className="border-b border-white/5">
+        <div className="mx-auto flex max-w-[1500px] items-center gap-4 px-5 py-5 md:px-8">
+          <div className="size-10 animate-pulse rounded-full bg-white/5" />
+
+          <div className="space-y-2">
+            <div className="h-2.5 w-16 animate-pulse rounded bg-white/5" />
+            <div className="h-4 w-32 animate-pulse rounded bg-white/5" />
+          </div>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="border-b border-white/5">
+        <div className="mx-auto grid max-w-[1500px] gap-8 px-5 py-8 md:grid-cols-[320px_1fr] md:px-8 md:py-12 lg:grid-cols-[380px_1fr]">
+
+          {/* Cover */}
+          <div className="aspect-square animate-pulse rounded-2xl bg-white/5" />
+
+          {/* Information */}
+          <div className="flex flex-col justify-end">
+            <div className="mb-5">
+              <div className="h-6 w-24 animate-pulse rounded-full bg-white/5" />
+            </div>
+
+            <div className="h-12 w-3/4 animate-pulse rounded-lg bg-white/5 md:h-16" />
+
+            <div className="mt-4 flex items-center gap-2">
+              <div className="size-8 animate-pulse rounded-full bg-white/5" />
+              <div className="h-4 w-28 animate-pulse rounded bg-white/5" />
+            </div>
+
+            <div className="mt-5 max-w-2xl space-y-2">
+              <div className="h-3 w-full animate-pulse rounded bg-white/5" />
+              <div className="h-3 w-4/5 animate-pulse rounded bg-white/5" />
+            </div>
+
+            {/* Actions */}
+            <div className="mt-8 flex gap-3">
+              <div className="h-11 w-32 animate-pulse rounded-full bg-white/5" />
+              <div className="size-11 animate-pulse rounded-full bg-white/5" />
+              <div className="h-11 w-40 animate-pulse rounded-full bg-white/5" />
+              <div className="size-11 animate-pulse rounded-full bg-white/5" />
+              <div className="size-11 animate-pulse rounded-full bg-white/5" />
+              <div className="size-11 animate-pulse rounded-full bg-white/5" />
+            </div>
+
+            {/* Stats */}
+            <div className="mt-8 flex gap-8">
+              <div className="h-3 w-24 animate-pulse rounded bg-white/5" />
+              <div className="h-3 w-20 animate-pulse rounded bg-white/5" />
+              <div className="h-3 w-16 animate-pulse rounded bg-white/5" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Content */}
+      <div className="mx-auto grid max-w-[1500px] gap-12 px-5 py-10 md:px-8 lg:grid-cols-[1fr_380px]">
+
+        {/* Left */}
+        <div>
+          <div className="mb-5 space-y-2">
+            <div className="h-2.5 w-20 animate-pulse rounded bg-white/5" />
+            <div className="h-6 w-40 animate-pulse rounded bg-white/5" />
+          </div>
+
+          <div className="rounded-xl border border-white/8 bg-white/[0.025] p-5">
+            <div className="grid gap-6 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="h-3 w-16 animate-pulse rounded bg-white/5" />
+                  <div className="h-4 w-32 animate-pulse rounded bg-white/5" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right */}
+        <aside>
+          <div className="mb-5 space-y-2">
+            <div className="h-2.5 w-16 animate-pulse rounded bg-white/5" />
+            <div className="h-6 w-32 animate-pulse rounded bg-white/5" />
+          </div>
+
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 rounded-xl p-2"
+              >
+                <div className="size-12 shrink-0 animate-pulse rounded-lg bg-white/5" />
+
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-3.5 w-3/4 animate-pulse rounded bg-white/5" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-white/5" />
+                </div>
+
+                <div className="h-3 w-8 animate-pulse rounded bg-white/5" />
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </main>
+  )
 }
