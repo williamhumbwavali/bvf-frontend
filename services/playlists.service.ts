@@ -1,44 +1,49 @@
-import { api } from '@/lib/api/client';
-import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { api } from '@/lib/api/client'
+import { API_ENDPOINTS } from '@/lib/api/endpoints'
+import type { Track } from './tracks.service'
 
 export interface Playlist {
-  id: string;
-  title: string;
-  description?: string;
-  coverUrl?: string;
-  ownerId: string;
-  tracks?: unknown[];
-  createdAt?: string;
-  updatedAt?: string;
+  id: string
+  title: string
+  description?: string | null
+  coverUrl?: string | null
+  ownerId: string
+  tracks?: Track[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface PlaylistsResponse {
+  data: Playlist[]
 }
 
 export interface PlaylistResponse {
-  data: Playlist[];
+  data: Playlist
 }
 
 export interface CreatePlaylistData {
-  title: string;
-  description?: string;
-  coverUrl?: string;
+  title: string
+  description?: string
+  coverUrl?: string
 }
 
 export const playlistsService = {
   list() {
-    return api.get<PlaylistResponse>(
+    return api.get<PlaylistsResponse>(
       API_ENDPOINTS.PLAYLISTS.LIST,
       {
         auth: true,
       },
-    );
+    )
   },
 
   getById(id: string) {
-    return api.get<Playlist>(
+    return api.get<PlaylistResponse>(
       API_ENDPOINTS.PLAYLISTS.BY_ID(id),
       {
         auth: true,
       },
-    );
+    )
   },
 
   create(data: CreatePlaylistData) {
@@ -48,7 +53,7 @@ export const playlistsService = {
       {
         auth: true,
       },
-    );
+    )
   },
 
   update(
@@ -61,7 +66,7 @@ export const playlistsService = {
       {
         auth: true,
       },
-    );
+    )
   },
 
   delete(id: string) {
@@ -70,6 +75,6 @@ export const playlistsService = {
       {
         auth: true,
       },
-    );
+    )
   },
-};
+}
