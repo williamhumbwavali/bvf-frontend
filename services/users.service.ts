@@ -67,30 +67,16 @@ export interface UpdateProfileData {
  */
 export interface UpdateProfileResponse {
   data: {
-    user: {
-      id: string;
-      name: string;
-      email: string;
-      username: string;
-      avatarUrl: string | null;
-      bio: string | null;
-      genre: string | null;
-      role: string;
-    };
-
-    artist?: {
-      id: string;
-      name: string;
-      handle: string;
-      genre: string | null;
-      image: string | null;
-      verified: boolean;
-      followers: number;
-      bio: string | null;
-      userId: string;
-    };
-  };
-}
+    id: string;
+    name: string;
+    email: string;
+    username: string;
+    avatarUrl: string | null;
+    bio: string | null;
+    genre: string | null;
+    role: string;
+  }
+};
 
 export const usersService = {
   getHistory() {
