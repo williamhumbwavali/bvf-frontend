@@ -44,7 +44,7 @@ export const API_ENDPOINTS = {
     LIKED_TRACKS: '/users/me/liked-tracks',
     DOWNLOADS: '/users/me/downloads',
     FOLLOWING: '/users/me/following',
-    UPDATE_PROFILE: '/users/me/me',
+    UPDATE_PROFILE: '/users/me',
     CHANGE_PASSWORD: '/users/me/password',
   },
   Genres: {

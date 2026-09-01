@@ -229,9 +229,6 @@ function Logo() {
       href="/"
       className="flex w-fit items-center gap-3"
     >
-      <div className="flex size-9 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110]">
-        <Radio className="size-4" />
-      </div>
 
       <span className="font-mono text-[13px] font-bold leading-tight tracking-[-0.05em]">
         BAD VIBES
