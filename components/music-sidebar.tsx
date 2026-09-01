@@ -53,9 +53,6 @@ export default function MusicSidebar({
         >
             {/* Logo */}
             <div className="mb-12 flex items-center gap-3 px-2">
-                <div className="flex size-8 items-center justify-center rounded-full bg-[#d8ff3e] text-[#101110]">
-                    <Radio className="size-4" />
-                </div>
 
                 <span className="font-mono text-[13px] font-bold tracking-[-0.05em]">
                     BAD VIBES

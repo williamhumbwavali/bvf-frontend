@@ -49,6 +49,14 @@ export interface TrackTrendingResponse {
   data: Track[];
 }
 
+export interface UpdateTrackData {
+  title?: string
+  genreId?: string
+  durationSec?: number
+  audioUrl?: string
+  coverUrl?: string
+}
+
 export const tracksService = {
   list(
     page = 1,
@@ -84,6 +92,24 @@ export const tracksService = {
       },
     );
   },
+  delete(id: string) {
+    return api.delete(
+      API_ENDPOINTS.TRACKS.DELETE(id),
+      {
+        auth: true,
+      },
+    )
+  },
+
+  update(id: string, data: UpdateTrackData) {
+    return api.patch<ApiResponse<Track>>(
+      API_ENDPOINTS.TRACKS.UPDATE(id),
+      data,
+      {
+        auth: true,
+      },
+    )
+  },
 
   async upload(
     file: {
@@ -111,9 +137,6 @@ export const tracksService = {
         auth: true,
       },
     )
-
-    console.log('SERVICE RESPONSE:', response)
-    console.log('SERVICE DATA:', response.data)
 
     return response.data
   },

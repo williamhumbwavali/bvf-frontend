@@ -75,8 +75,23 @@ export interface UpdateProfileResponse {
     bio: string | null;
     genre: string | null;
     role: string;
-  }
-};
+  };
+}
+
+/**
+ * Dados para alteração da senha.
+ */
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Resposta da alteração da senha.
+ */
+export interface ChangePasswordResponse {
+  message: string;
+}
 
 export const usersService = {
   getHistory() {
@@ -123,9 +138,20 @@ export const usersService = {
       },
     );
   },
+
   updateProfile(data: UpdateProfileData) {
     return api.patch<UpdateProfileResponse>(
       API_ENDPOINTS.USERS.UPDATE_PROFILE,
+      data,
+      {
+        auth: true,
+      },
+    );
+  },
+
+  changePassword(data: ChangePasswordData) {
+    return api.patch<ChangePasswordResponse>(
+      API_ENDPOINTS.USERS.CHANGE_PASSWORD,
       data,
       {
         auth: true,

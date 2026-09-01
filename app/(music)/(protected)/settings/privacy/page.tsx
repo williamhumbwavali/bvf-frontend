@@ -110,7 +110,7 @@ export default function PrivacyPage() {
         </header>
 
         {/* Perfil */}
-        <section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
+        {/*<section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
           <div className="border-b border-white/8 px-5 py-4">
             <div className="flex items-center gap-3">
               <Eye className="size-4 text-[#d8ff3e]" />
@@ -141,10 +141,10 @@ export default function PrivacyPage() {
               )
             }
           />
-        </section>
+        </section>*/}
 
         {/* Conteúdo */}
-        <section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
+        {/*<section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
           <div className="border-b border-white/8 px-5 py-4">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
               Conteúdo
@@ -184,7 +184,7 @@ export default function PrivacyPage() {
               )
             }
           />
-        </section>
+        </section>*/}
 
         {/* Privacidade da conta */}
         <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">

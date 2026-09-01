@@ -10,17 +10,14 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+
 import { formatTime } from './music-player'
-
-import {
-  Track,
-} from '@/services/tracks.service'
-
+import { Track } from '@/services/tracks.service'
 import {
   playlistsService,
   type Playlist,
 } from '@/services/playlists.service'
-
+import { usersService } from '@/services/users.service'
 import { usePlayerStore } from '@/stores/player-store'
 
 interface TrackRowProps {
@@ -56,24 +53,49 @@ export default function TrackRow({
 }: TrackRowProps) {
   const router = useRouter()
 
-  const { liked, toggleLike } =
-    usePlayerStore()
+  const { liked, toggleLike } = usePlayerStore()
 
-  const [menuOpen, setMenuOpen] =
-    useState(false)
-
-  const [playlistOpen, setPlaylistOpen] =
-    useState(false)
-
-  const [playlists, setPlaylists] =
-    useState<Playlist[]>([])
-
-  const [loadingPlaylists, setLoadingPlaylists] =
-    useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [playlistOpen, setPlaylistOpen] = useState(false)
+  const [playlists, setPlaylists] = useState<Playlist[]>([])
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false)
 
   const menuRef = useRef<HTMLDivElement>(null)
 
   const isLiked = liked.includes(track.id)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadLikedTracks = async () => {
+      try {
+        const response = await usersService.getLikedTracks()
+
+        if (cancelled) {
+          return
+        }
+
+        const likedIds = response.data.map(
+          (like) => like.trackId,
+        )
+
+        usePlayerStore.setState({
+          liked: likedIds,
+        })
+      } catch (error) {
+        console.error(
+          'Erro ao carregar músicas favoritas:',
+          error,
+        )
+      }
+    }
+
+    loadLikedTracks()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleOpenTrack = () => {
     router.push(`/music/${track.id}`)
@@ -84,10 +106,7 @@ export default function TrackRow({
       return
     }
 
-    router.push(
-      `/artist/${track.artist.handle}`,
-    )
-
+    router.push(`/artist/${track.artist.handle}`)
     setMenuOpen(false)
   }
 
@@ -98,7 +117,6 @@ export default function TrackRow({
       await navigator.clipboard.writeText(url)
 
       toast.success('Link da música copiado.')
-
       setMenuOpen(false)
     } catch {
       toast.error(
@@ -116,11 +134,9 @@ export default function TrackRow({
     setLoadingPlaylists(true)
 
     try {
-      const response =
-        await playlistsService.list()
+      const response = await playlistsService.list()
 
       setPlaylists(response.data)
-
       setPlaylistOpen(true)
     } catch (error) {
       console.error(
@@ -140,7 +156,10 @@ export default function TrackRow({
     playlist: Playlist,
   ) => {
     try {
-      await playlistsService.addTracks(playlist.id, [track.id])
+      await playlistsService.addTracks(
+        playlist.id,
+        [track.id],
+      )
 
       toast.success(
         `"${track.title}" adicionada à playlist "${playlist.title}".`,
@@ -149,8 +168,14 @@ export default function TrackRow({
       setPlaylistOpen(false)
       setMenuOpen(false)
     } catch (error) {
-      console.error('Erro ao adicionar música à playlist:', error)
-      toast.error('Não foi possível adicionar a música à playlist.')
+      console.error(
+        'Erro ao adicionar música à playlist:',
+        error,
+      )
+
+      toast.error(
+        'Não foi possível adicionar a música à playlist.',
+      )
     }
   }
 
@@ -186,12 +211,10 @@ export default function TrackRow({
 
   return (
     <div className="group flex items-center gap-3 border-b border-white/7 py-3.5">
-      {/* Número */}
       <span className="w-5 text-center font-mono text-xs text-white/30 group-hover:text-[#d8ff3e]">
         {String(index + 1).padStart(2, '0')}
       </span>
 
-      {/* Reproduzir */}
       <button
         type="button"
         onClick={() => onPlay(track)}
@@ -209,7 +232,6 @@ export default function TrackRow({
         </span>
       </button>
 
-      {/* Informações */}
       <div className="min-w-0 flex-1">
         <button
           type="button"
@@ -228,20 +250,16 @@ export default function TrackRow({
             {track.artist?.name}
           </button>
 
-          <span className="px-1">
-            ·
-          </span>
+          <span className="px-1">·</span>
 
           {track.genre?.name}
         </p>
       </div>
 
-      {/* Reproduções */}
       <span className="hidden text-xs text-white/35 sm:block">
         {track.playCount ?? 0}
       </span>
 
-      {/* Like */}
       <button
         type="button"
         aria-label={
@@ -250,9 +268,7 @@ export default function TrackRow({
             : 'Curtir música'
         }
         aria-pressed={isLiked}
-        onClick={() =>
-          toggleLike(track.id)
-        }
+        onClick={() => toggleLike(track.id)}
         className={`rounded-full p-2 transition-colors ${
           isLiked
             ? 'text-[#d8ff3e]'
@@ -261,22 +277,18 @@ export default function TrackRow({
       >
         <Heart
           className={`size-4 ${
-            isLiked
-              ? 'fill-current'
-              : ''
+            isLiked ? 'fill-current' : ''
           }`}
         />
       </button>
 
-      {/* Duração */}
       <span className="w-10 text-right font-mono text-xs text-white/35">
         {formatTime(track.durationSec)}
       </span>
 
-      {/* Mais opções */}
       <div
         ref={menuRef}
-        className="relative hidden sm:block z-60"
+        className="relative z-60 hidden sm:block"
       >
         <button
           type="button"
@@ -293,10 +305,8 @@ export default function TrackRow({
 
         {menuOpen && (
           <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#171917] p-1.5 shadow-2xl shadow-black/40">
-
             {!playlistOpen ? (
               <>
-                {/* Adicionar à playlist */}
                 <button
                   type="button"
                   onClick={loadPlaylists}
@@ -316,14 +326,15 @@ export default function TrackRow({
                 {onRemoveFromPlaylist && (
                   <button
                     type="button"
-                    onClick={() => onRemoveFromPlaylist(track)}
+                    onClick={() =>
+                      onRemoveFromPlaylist(track)
+                    }
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-red-300/80 transition-colors hover:bg-red-400/10 hover:text-red-200"
                   >
                     Remover da playlist
                   </button>
                 )}
 
-                {/* Ir para artista */}
                 <button
                   type="button"
                   onClick={handleOpenArtist}
@@ -336,7 +347,6 @@ export default function TrackRow({
                   Ir para o artista
                 </button>
 
-                {/* Copiar link */}
                 <button
                   type="button"
                   onClick={handleCopyLink}
@@ -351,7 +361,6 @@ export default function TrackRow({
               </>
             ) : (
               <>
-                {/* Cabeçalho playlists */}
                 <div className="flex items-center gap-2 border-b border-white/8 px-2 py-2">
                   <button
                     type="button"
@@ -369,14 +378,12 @@ export default function TrackRow({
                   </span>
                 </div>
 
-                {/* Loading */}
                 {loadingPlaylists && (
                   <div className="flex items-center justify-center px-3 py-8">
                     <span className="size-4 animate-spin rounded-full border-2 border-white/20 border-t-[#d8ff3e]" />
                   </div>
                 )}
 
-                {/* Sem playlists */}
                 {!loadingPlaylists &&
                   playlists.length === 0 && (
                     <div className="px-4 py-7 text-center">
@@ -400,7 +407,6 @@ export default function TrackRow({
                     </div>
                   )}
 
-                {/* Playlists */}
                 {!loadingPlaylists &&
                   playlists.length > 0 && (
                     <div className="max-h-64 overflow-y-auto py-1">
@@ -416,7 +422,6 @@ export default function TrackRow({
                             }
                             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white/5"
                           >
-                            {/* Capa */}
                             <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white/5">
                               {playlist.coverUrl ? (
                                 <img
@@ -431,7 +436,6 @@ export default function TrackRow({
                               )}
                             </div>
 
-                            {/* Nome */}
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-xs font-medium text-white/80">
                                 {playlist.title}

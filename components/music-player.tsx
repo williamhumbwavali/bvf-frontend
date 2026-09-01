@@ -876,21 +876,8 @@ export default function MusicPlayer() {
                                 ),
                             )
                         }
-                        className="h-1 w-20 accent-[#d8ff3e]"
+                        className="h-1 w-40 accent-[#d8ff3e]"
                     />
-
-                    <button
-                        type="button"
-                        aria-label="Fila de reprodução"
-                        aria-pressed={queueOpen}
-                        onClick={toggleQueue}
-                        className={`rounded p-1.5 transition-colors ${queueOpen
-                                ? 'text-[#d8ff3e]'
-                                : 'text-white/40 hover:text-white'
-                            }`}
-                    >
-                        <ListMusic className="size-4" />
-                    </button>
                 </div>
 
                 {/* Mais opções */}
@@ -904,7 +891,6 @@ export default function MusicPlayer() {
                     }
                     className="text-white/40 transition-colors hover:text-white"
                 >
-                    <MoreHorizontal className="size-5" />
                 </button>
             </div>
         </footer>

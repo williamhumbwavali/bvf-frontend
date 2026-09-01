@@ -34,7 +34,7 @@ import {
   playlistsService,
 } from '@/services/playlists.service'
 
-type LibraryTab = 'Curtidas' | 'Playlists' | 'Downloads'
+type LibraryTab = 'Curtidas' | 'Playlists'
 
 /* =========================================================
    COVER
@@ -106,15 +106,10 @@ function LibraryStats({
       value: playlistCount,
       icon: ListMusic,
     },
-    {
-      label: 'Downloads',
-      value: downloadCount,
-      icon: Download,
-    },
   ]
 
   return (
-    <section className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <section className="mb-8 grid grid-cols-1 gap-2 lg:grid-cols-2">
       {stats.map(({ label, value, icon: Icon }) => (
         <div
           key={label}
@@ -159,10 +154,6 @@ function LibraryTabs({
     {
       label: 'Playlists',
       icon: ListMusic,
-    },
-    {
-      label: 'Downloads',
-      icon: Download,
     },
   ]
 
@@ -724,18 +715,6 @@ export default function LibraryPage() {
               {activeTab === 'Playlists' && (
                 <PlaylistGrid
                   playlists={playlists}
-                />
-              )}
-
-              {/* =================================================
-                  DOWNLOADS
-              ================================================= */}
-
-              {activeTab === 'Downloads' && (
-                <DownloadsSection
-                  tracks={tracks}
-                  downloadIds={downloadIds}
-                  onPlay={playTrack}
                 />
               )}
             </>

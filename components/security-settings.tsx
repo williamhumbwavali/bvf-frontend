@@ -13,6 +13,7 @@ import {
   Smartphone,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { usersService } from '@/services/users.service'
 
 const sessions = [
   {
@@ -36,25 +37,38 @@ const sessions = [
 ]
 
 export default function SecuritySettings() {
-  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [showPasswordForm, setShowPasswordForm] =
+    useState(false)
+
   const [saving, setSaving] = useState(false)
 
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [currentPassword, setCurrentPassword] =
+    useState('')
+
+  const [newPassword, setNewPassword] =
+    useState('')
+
+  const [confirmPassword, setConfirmPassword] =
+    useState('')
 
   const handlePasswordChange = async (
     event: React.FormEvent,
   ) => {
     event.preventDefault()
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    if (
+      !currentPassword ||
+      !newPassword ||
+      !confirmPassword
+    ) {
       toast.error('Preencha todos os campos.')
       return
     }
 
     if (newPassword.length < 8) {
-      toast.error('A nova senha deve ter pelo menos 8 caracteres.')
+      toast.error(
+        'A nova senha deve ter pelo menos 8 caracteres.',
+      )
       return
     }
 
@@ -63,19 +77,59 @@ export default function SecuritySettings() {
       return
     }
 
-    setSaving(true)
+    if (currentPassword === newPassword) {
+      toast.error(
+        'A nova senha deve ser diferente da senha atual.',
+      )
+      return
+    }
 
-    // Substituir posteriormente pela API
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      setSaving(true)
 
-    setSaving(false)
+      await usersService.changePassword({
+        currentPassword,
+        newPassword,
+      })
 
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    setShowPasswordForm(false)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPasswordForm(false)
 
-    toast.success('Senha alterada com sucesso.')
+      toast.success('Senha alterada com sucesso.')
+    } catch (error: any) {
+      console.error(
+        'Erro ao alterar senha:',
+        error,
+      )
+
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Não foi possível alterar a senha.'
+
+      if (
+        message === 'A senha atual está incorreta'
+      ) {
+        toast.error(
+          'A senha atual está incorreta.',
+        )
+      } else if (
+        message ===
+        'A nova senha deve ser diferente da senha atual'
+      ) {
+        toast.error(
+          'A nova senha deve ser diferente da senha atual.',
+        )
+      } else if (Array.isArray(message)) {
+        toast.error(message.join(', '))
+      } else {
+        toast.error(message)
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleLogoutSession = (id: string) => {
@@ -88,7 +142,9 @@ export default function SecuritySettings() {
   }
 
   const handleLogoutAll = () => {
-    toast.success('Todas as outras sessões foram encerradas.')
+    toast.success(
+      'Todas as outras sessões foram encerradas.',
+    )
   }
 
   return (
@@ -105,7 +161,6 @@ export default function SecuritySettings() {
           </Link>
 
           <div className="hidden items-center gap-2 sm:flex">
-
             <span className="font-mono text-[11px] font-bold tracking-[-0.04em]">
               BAD VIBES FOREVER
             </span>
@@ -176,7 +231,12 @@ export default function SecuritySettings() {
             </div>
 
             <button
-              onClick={() => setShowPasswordForm(!showPasswordForm)}
+              type="button"
+              onClick={() =>
+                setShowPasswordForm(
+                  !showPasswordForm,
+                )
+              }
               className="flex items-center gap-1 text-xs font-semibold text-[#d8ff3e] hover:underline"
             >
               Alterar
@@ -190,6 +250,7 @@ export default function SecuritySettings() {
               className="border-t border-white/8 bg-[#101210] p-6 md:p-8"
             >
               <div className="max-w-xl space-y-5">
+                {/* Senha atual */}
                 <div>
                   <label
                     htmlFor="current-password"
@@ -203,13 +264,17 @@ export default function SecuritySettings() {
                     type="password"
                     value={currentPassword}
                     onChange={(event) =>
-                      setCurrentPassword(event.target.value)
+                      setCurrentPassword(
+                        event.target.value,
+                      )
                     }
                     autoComplete="current-password"
-                    className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-sm outline-none focus:border-[#d8ff3e]/60"
+                    disabled={saving}
+                    className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-sm outline-none focus:border-[#d8ff3e]/60 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
 
+                {/* Nova senha */}
                 <div>
                   <label
                     htmlFor="new-password"
@@ -223,14 +288,18 @@ export default function SecuritySettings() {
                     type="password"
                     value={newPassword}
                     onChange={(event) =>
-                      setNewPassword(event.target.value)
+                      setNewPassword(
+                        event.target.value,
+                      )
                     }
                     autoComplete="new-password"
                     placeholder="Mínimo de 8 caracteres"
-                    className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-sm outline-none placeholder:text-white/20 focus:border-[#d8ff3e]/60"
+                    disabled={saving}
+                    className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-sm outline-none placeholder:text-white/20 focus:border-[#d8ff3e]/60 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
 
+                {/* Confirmar senha */}
                 <div>
                   <label
                     htmlFor="confirm-password"
@@ -244,18 +313,28 @@ export default function SecuritySettings() {
                     type="password"
                     value={confirmPassword}
                     onChange={(event) =>
-                      setConfirmPassword(event.target.value)
+                      setConfirmPassword(
+                        event.target.value,
+                      )
                     }
                     autoComplete="new-password"
-                    className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-sm outline-none focus:border-[#d8ff3e]/60"
+                    disabled={saving}
+                    className="h-11 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-sm outline-none focus:border-[#d8ff3e]/60 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
 
+                {/* Ações */}
                 <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
                   <button
                     type="button"
-                    onClick={() => setShowPasswordForm(false)}
-                    className="h-10 rounded-lg border border-white/10 px-4 text-xs text-white/50 hover:bg-white/5 hover:text-white"
+                    onClick={() => {
+                      setCurrentPassword('')
+                      setNewPassword('')
+                      setConfirmPassword('')
+                      setShowPasswordForm(false)
+                    }}
+                    disabled={saving}
+                    className="h-10 rounded-lg border border-white/10 px-4 text-xs text-white/50 hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Cancelar
                   </button>
@@ -263,9 +342,11 @@ export default function SecuritySettings() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="h-10 rounded-lg bg-[#d8ff3e] px-5 text-xs font-bold text-[#101110] disabled:opacity-50"
+                    className="h-10 rounded-lg bg-[#d8ff3e] px-5 text-xs font-bold text-[#101110] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {saving ? 'Salvando...' : 'Atualizar senha'}
+                    {saving
+                      ? 'Salvando...'
+                      : 'Atualizar senha'}
                   </button>
                 </div>
               </div>
@@ -296,81 +377,6 @@ export default function SecuritySettings() {
             <ChevronRight className="size-4 text-white/25" />
           </Link>
         </section>
-
-        {/* Sessões */}
-        {/*<section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
-          <div className="flex items-center justify-between border-b border-white/8 p-6 md:p-8">
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
-                Acesso
-              </p>
-
-              <h2 className="mt-1 font-semibold">
-                Sessões ativas
-              </h2>
-
-              <p className="mt-1 text-xs text-white/35">
-                Dispositivos onde sua conta está conectada.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            {sessions.map((session) => {
-              const Icon = session.icon
-
-              return (
-                <div
-                  key={session.id}
-                  className="flex items-center gap-4 border-b border-white/8 p-5 last:border-b-0 md:px-8"
-                >
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/45">
-                    <Icon className="size-5" />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">
-                        {session.device}
-                      </p>
-
-                      {session.current && (
-                        <span className="rounded-full bg-[#d8ff3e]/10 px-2 py-0.5 text-[9px] font-semibold text-[#d8ff3e]">
-                          ESTE DISPOSITIVO
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="mt-1 truncate text-xs text-white/35">
-                      {session.browser} · {session.location}
-                    </p>
-
-                    <p className="mt-1 text-[10px] text-white/20">
-                      Ativo {session.lastActive}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => handleLogoutSession(session.id)}
-                    className="text-xs text-white/30 hover:text-red-400"
-                  >
-                    Encerrar
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="border-t border-white/8 p-5 md:px-8">
-            <button
-              onClick={handleLogoutAll}
-              className="flex items-center gap-2 text-xs font-semibold text-red-400/80 hover:text-red-400"
-            >
-              <LogOut className="size-4" />
-              Encerrar todas as outras sessões
-            </button>
-          </div>
-        </section>*/}
 
         {/* Aviso */}
         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
