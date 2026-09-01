@@ -94,7 +94,6 @@ export default function MusicSidebar({
                 {[
                     { label: 'Músicas curtidas', icon: Heart, href: '/liked' },
                     { label: 'Playlists', icon: ListMusic, href: '/playlists' },
-                    { label: 'Downloads', icon: Download, href: '/downloads' },
                 ].map(({ label, icon: Icon, href }) => (
                     <Link
                         key={label}

@@ -298,7 +298,7 @@ export default function SecuritySettings() {
         </section>
 
         {/* Sessões */}
-        <section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
+        {/*<section className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-[#131513]">
           <div className="flex items-center justify-between border-b border-white/8 p-6 md:p-8">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
@@ -370,7 +370,7 @@ export default function SecuritySettings() {
               Encerrar todas as outras sessões
             </button>
           </div>
-        </section>
+        </section>*/}
 
         {/* Aviso */}
         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">

@@ -27,6 +27,8 @@ import MusicHeader from './music-header'
 import TrackRow from './track-row'
 import { useRouter } from 'next/navigation'
 import PublishButton from './ui/publish-button'
+import { albumsService, type Album } from '@/services/albums.service'
+import { AlbumsSection } from './albums-section'
 
 /* -------------------------------------------------------------------------- */
 /* Skeleton                                                                   */
@@ -786,6 +788,7 @@ export default function MusicDashboard() {
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
+  const [albums, setAlbums] = useState<Album[]>([])
 
   const [loading, setLoading] = useState(true)
 
@@ -803,13 +806,16 @@ export default function MusicDashboard() {
         const [
           tracksResponse,
           playlistsResponse,
+          albumsResponse,
         ] = await Promise.all([
           tracksService.list(1, 50),
           playlistsService.list(),
+          albumsService.list(),
         ])
 
         setTracks(tracksResponse.data.data)
         setPlaylists(playlistsResponse.data)
+        setAlbums(albumsResponse.data)
       } catch (error) {
         console.error(
           'Erro ao carregar dashboard:',
@@ -1002,6 +1008,8 @@ export default function MusicDashboard() {
                   onPlay={playTrack}
                 />
               )}
+
+              {!loading && <AlbumsSection albums={albums} />}
 
               {/* -------------------------------------------------------------- */}
               {/* Playlists + Recent                                             */}

@@ -4,11 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   Compass,
-  Flame,
   Heart,
   Play,
   Sparkles,
-  TrendingUp,
 } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import Link from 'next/link'
@@ -35,6 +33,8 @@ import {
   genresService,
 } from '@/services/genre.service'
 import { useRouter } from 'next/navigation'
+import { albumsService, type Album } from '@/services/albums.service'
+import { AlbumsSection } from './albums-section'
 
 /* =========================================================
    COVER
@@ -221,7 +221,6 @@ function TrendingSection({
       <div className="mb-5 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Flame className="size-5 text-[#d8ff3e]" />
 
             <h2 className="text-xl font-semibold tracking-tight">
               Em alta agora
@@ -286,7 +285,6 @@ function NewReleases({
       <div className="mb-5 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Sparkles className="size-5 text-[#d8ff3e]" />
 
             <h2 className="text-xl font-semibold tracking-tight">
               Novos lançamentos
@@ -447,7 +445,6 @@ function PopularArtists() {
     <section className="mt-12">
       <div className="mb-5">
         <div className="flex items-center gap-2">
-          <TrendingUp className="size-5 text-[#d8ff3e]" />
 
           <h2 className="text-xl font-semibold tracking-tight">
             Artistas para descobrir
@@ -531,6 +528,7 @@ export default function DiscoverPage() {
 
   const [newReleases, setNewReleases] =
     useState<Track[]>([])
+  const [albums, setAlbums] = useState<Album[]>([])
 
   const [genres, setGenres] =
     useState<Genre[]>([])
@@ -553,10 +551,12 @@ export default function DiscoverPage() {
           trendingResponse,
           releasesResponse,
           genresResponse,
+          albumsResponse,
         ] = await Promise.all([
           tracksService.trending(),
           tracksService.list(1, 20),
           genresService.list(),
+          albumsService.list(),
         ])
 
         /*
@@ -579,6 +579,8 @@ export default function DiscoverPage() {
         setGenres(
           genresResponse.data,
         )
+
+        setAlbums(albumsResponse.data)
       } catch (error) {
         console.error(
           'Erro ao carregar Discover:',
@@ -796,6 +798,12 @@ export default function DiscoverPage() {
               <NewReleases
                 tracks={newReleases}
                 onPlay={playTrack}
+              />
+
+              <AlbumsSection
+                albums={albums}
+                title="Álbuns para descobrir"
+                description="Ouça projetos completos de artistas independentes."
               />
 
               {/* Artistas */}

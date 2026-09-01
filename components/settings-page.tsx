@@ -51,25 +51,6 @@ const sections = [
     ],
   },
   {
-    title: 'Experiência',
-    items: [
-      {
-        id: 'notifications',
-        label: 'Notificações',
-        href: '',
-        description: 'Escolha o que deseja receber',
-        icon: Bell,
-      },
-      {
-        id: 'downloads',
-        label: 'Downloads',
-        href: '/downloads',
-        description: 'Armazenamento e reprodução offline',
-        icon: Download,
-      },
-    ],
-  },
-  {
     title: 'Preferências',
     items: [
       {
@@ -173,7 +154,7 @@ export default function SettingsPage() {
               </section>
             ))}
 
-            <section>
+            {/*<section>
               <h2 className="mb-3 px-1 font-mono text-[10px] uppercase tracking-[0.2em] text-white/35">
                 Reprodução rápida
               </h2>
@@ -200,7 +181,7 @@ export default function SettingsPage() {
                   onChange={setHighQuality}
                 />
               </div>
-            </section>
+            </section>*/}
 
             <section>
               <button

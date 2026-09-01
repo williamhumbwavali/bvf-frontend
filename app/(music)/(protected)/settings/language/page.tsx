@@ -12,12 +12,6 @@ const languages = [
     nativeName: 'Português',
     description: 'Idioma principal da interface',
   },
-  {
-    id: 'en',
-    name: 'English',
-    nativeName: 'English',
-    description: 'Use o Bad Vibes Forever em inglês',
-  },
 ]
 
 export default function LanguagePage() {

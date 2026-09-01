@@ -27,6 +27,15 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/playlists/${id}`,
     UPDATE: (id: string) => `/playlists/${id}`,
     DELETE: (id: string) => `/playlists/${id}`,
+    TRACKS: (id: string) => `/playlists/${id}/tracks`,
+    TRACK: (id: string, trackId: string) =>
+      `/playlists/${id}/tracks/${trackId}`,
+  },
+
+  ALBUMS: {
+    LIST: '/albums',
+    CREATE: '/albums',
+    BY_ID: (id: string) => `/albums/${id}`,
   },
 
   USERS: {

@@ -77,4 +77,19 @@ export const playlistsService = {
       },
     )
   },
+
+  addTracks(id: string, trackIds: string[]) {
+    return api.post<PlaylistResponse>(
+      API_ENDPOINTS.PLAYLISTS.TRACKS(id),
+      { trackIds },
+      { auth: true },
+    )
+  },
+
+  removeTrack(id: string, trackId: string) {
+    return api.delete<{ success: boolean; data: { removed: boolean } }>(
+      API_ENDPOINTS.PLAYLISTS.TRACK(id, trackId),
+      { auth: true },
+    )
+  },
 }

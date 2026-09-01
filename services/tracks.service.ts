@@ -76,7 +76,7 @@ export const tracksService = {
   },
 
   create(data: any) {
-    return api.post<Track>(
+    return api.post<ApiResponse<Track>>(
       API_ENDPOINTS.TRACKS.CREATE,
       data,
       {

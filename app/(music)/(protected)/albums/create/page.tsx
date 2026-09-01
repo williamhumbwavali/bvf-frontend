@@ -20,6 +20,7 @@ import MusicSidebar from '@/components/music-sidebar'
 import MusicHeader from '@/components/music-header'
 
 import { tracksService } from '@/services/tracks.service'
+import { albumsService } from '@/services/albums.service'
 import { Genre, genresService } from '@/services/genre.service'
 
 interface AlbumTrack {
@@ -323,9 +324,9 @@ export default function CreateAlbumPage() {
        * =====================================================
        */
 
-      for (let index = 0; index < albumTracks.length; index++) {
-        const track = albumTracks[index]
+      const trackIds: string[] = []
 
+      for (const track of albumTracks) {
         const audioUpload =
           await tracksService.upload(
             track.file,
@@ -349,38 +350,25 @@ export default function CreateAlbumPage() {
           )
         }
 
-        /*
-         * Aqui entra a criação da música.
-         *
-         * Depois de criares o endpoint de álbum,
-         * o ideal é passar albumId para cada track.
-         */
-
-        console.log({
+        const createdTrack = await tracksService.create({
           title: track.title,
           genreId,
           durationSec: track.durationSec,
           audioUrl: audioUpload.publicUrl,
           coverUrl,
-          trackNumber: index + 1,
         })
+
+        trackIds.push(createdTrack.data.id)
       }
 
-      /*
-       * =====================================================
-       * CRIAÇÃO DO ÁLBUM
-       * =====================================================
-       *
-       * Aqui deverá entrar:
-       *
-       * albumsService.create(...)
-       *
-       * e depois a associação das músicas ao álbum.
-       *
-       */
+      await albumsService.create({
+        title: title.trim(),
+        coverUrl,
+        trackIds,
+      })
 
       toast.success(
-        'Álbum preparado com sucesso.',
+        'Álbum publicado com sucesso.',
       )
 
       setTitle('')
@@ -390,6 +378,7 @@ export default function CreateAlbumPage() {
       removeCover()
 
       setAlbumTracks([])
+
     } catch (error) {
       console.error(error)
 

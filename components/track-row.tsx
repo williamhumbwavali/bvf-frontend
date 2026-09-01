@@ -27,6 +27,7 @@ interface TrackRowProps {
   track: Track
   index: number
   onPlay: (track: Track) => void
+  onRemoveFromPlaylist?: (track: Track) => void
 }
 
 function Cover({
@@ -51,6 +52,7 @@ export default function TrackRow({
   track,
   index,
   onPlay,
+  onRemoveFromPlaylist,
 }: TrackRowProps) {
   const router = useRouter()
 
@@ -137,23 +139,19 @@ export default function TrackRow({
   const handleAddToPlaylist = async (
     playlist: Playlist,
   ) => {
-    /*
-     * Ainda não estamos enviando para a API.
-     *
-     * Aqui futuramente vamos chamar algo como:
-     *
-     * await playlistsService.addTrack(
-     *   playlist.id,
-     *   track.id,
-     * )
-     */
+    try {
+      await playlistsService.addTracks(playlist.id, [track.id])
 
-    toast.success(
-      `"${track.title}" adicionada à playlist "${playlist.title}".`,
-    )
+      toast.success(
+        `"${track.title}" adicionada à playlist "${playlist.title}".`,
+      )
 
-    setPlaylistOpen(false)
-    setMenuOpen(false)
+      setPlaylistOpen(false)
+      setMenuOpen(false)
+    } catch (error) {
+      console.error('Erro ao adicionar música à playlist:', error)
+      toast.error('Não foi possível adicionar a música à playlist.')
+    }
   }
 
   useEffect(() => {
@@ -314,6 +312,16 @@ export default function TrackRow({
                     →
                   </span>
                 </button>
+
+                {onRemoveFromPlaylist && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveFromPlaylist(track)}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs text-red-300/80 transition-colors hover:bg-red-400/10 hover:text-red-200"
+                  >
+                    Remover da playlist
+                  </button>
+                )}
 
                 {/* Ir para artista */}
                 <button

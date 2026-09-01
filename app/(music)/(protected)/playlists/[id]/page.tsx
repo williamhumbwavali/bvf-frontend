@@ -216,9 +216,11 @@ function PlaylistHero({
 function PlaylistTracks({
   tracks,
   onPlay,
+  onRemoveFromPlaylist,
 }: {
   tracks: Track[]
   onPlay: (track: Track) => void
+  onRemoveFromPlaylist: (track: Track) => void
 }) {
   if (tracks.length === 0) {
     return (
@@ -244,6 +246,7 @@ function PlaylistTracks({
           track={track}
           index={index}
           onPlay={onPlay}
+          onRemoveFromPlaylist={onRemoveFromPlaylist}
         />
       ))}
     </div>
@@ -322,6 +325,21 @@ export default function PlaylistPage() {
     playTrack(tracks[0] as Track)
   }
 
+  const removeTrack = async (track: Track) => {
+    if (!playlist) return
+
+    try {
+      await playlistsService.removeTrack(playlist.id, track.id)
+      setPlaylist((current) => current
+        ? { ...current, tracks: current.tracks?.filter((item) => item.id !== track.id) }
+        : current)
+      toast.success(`"${track.title}" removida da playlist.`)
+    } catch (error) {
+      console.error('Erro ao remover música da playlist:', error)
+      toast.error('Não foi possível remover a música da playlist.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0c0d0c] text-white">
       <MusicSidebar
@@ -386,6 +404,7 @@ export default function PlaylistPage() {
                     []) as Track[]
                 }
                 onPlay={playTrack}
+                onRemoveFromPlaylist={removeTrack}
               />
             )}
           </section>
